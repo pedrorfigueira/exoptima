@@ -1,0 +1,36 @@
+[project]
+name = "exoptima"
+version = "1.0.0"
+description = "EXOTICA Observation Preparation Tool for Instrumentation and Mission Assessment"
+readme = "README.md"
+license = { file = "LICENSE" }
+keywords = ["astronomy", "scheduling", "observations"]
+requires-python = ">=3.10"
+authors = [
+    { name = "Pedro Figueira", email = "pedro.figueira@iaa.es" }
+]
+
+dependencies = [
+    "panel",
+    "numpy",
+    "astropy",
+    "astroquery",
+    "astroplan",
+]
+
+[project.scripts]
+exoptima = "exoptima.cli:main"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+fist = ["assets/*.svg"]
+
+[project.urls]
+Homepage = "https://github.com/pedrorfigueira/exoptima"
+Repository = "https://github.com/pedrorfigueira/exoptima"

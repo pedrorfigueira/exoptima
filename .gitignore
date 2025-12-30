@@ -1,0 +1,11 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Packaging artifacts
+build/
+*.egg-info/
+
+# Summaries created
+*.pdf
+*.txt
