@@ -8,8 +8,8 @@ from exoptima.core.state import AppState
 from exoptima.config.layout import BUTTON_WIDTH, BUTTON_HEIGHT
 
 from exoptima.tabs.controls import (
-    make_star_tab, make_instrument_tab, make_observing_conditions_tab, make_time_tab)
-from exoptima.tabs.display import make_daily_observability_tab, make_rv_precision_tab, make_output_tab
+    make_star_tab, make_instrument_tab, make_observing_conditions_tab, make_time_tab, make_planet_rv_tab)
+from exoptima.tabs.display import make_daily_observability_tab, make_output_tab
 
 # ------------------------------------------------------------------
 # Header
@@ -77,14 +77,15 @@ divider_h = pn.Spacer(
     styles={"background-color": "#e0e0e0"},
 )
 
-def make_control_tabs(app_state):
+def make_control_tabs(app_state: AppState):
     return pn.Tabs(
         ("Star", make_star_tab(app_state)),
         ("Instrument", make_instrument_tab(app_state)),
         ("Conditions", make_observing_conditions_tab(app_state)),
-        ("Time", make_time_tab(app_state)),   # ← new
+        ("Planet & RVs", make_planet_rv_tab(app_state)),
         sizing_mode="stretch_width",
     )
+
 
 
 def make_output_tabs(app_state: AppState):
@@ -92,6 +93,6 @@ def make_output_tabs(app_state: AppState):
         ("Daily Obs.", make_daily_observability_tab(app_state)),
         ("Monthly Obs.", make_output_tab("Monthly observations")),
         ("Yearly Obs.", make_output_tab("Yearly observations")),
-        ("RV precision", make_rv_precision_tab()),
+        ("RV precision", make_output_tab("RV precision")),
         sizing_mode="stretch_both",
     )

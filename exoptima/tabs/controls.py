@@ -502,45 +502,6 @@ def make_observing_conditions_tab(app_state: AppState):
     _update_conditions()
 
     # --------------------------------------------------
-    # Instantaneous conditions (disabled)
-    # --------------------------------------------------
-
-    title_precision = pn.pane.HTML(
-        "<div style='font-size: 1.3em; font-weight: normal;'>RV Precision Conditions</div>"
-        "<span style='color:#b00020; font-style:italic;'>"
-        "(Not implemented yet)"
-        "</span></strong>",
-    )
-
-    seeing = pn.widgets.FloatSlider(
-        name="Seeing (arcsec)",
-        start=0.3,
-        end=3.0,
-        value=1.0,
-        step=0.1,
-        width=FORM_WIDGET_WIDTH,
-    )
-
-    airmass_inst = pn.widgets.FloatInput(
-        name="Airmass [ ]",
-        value=1.5,
-        start=1.0,
-        end=3.0,
-        step=0.1,
-        width=FORM_WIDGET_WIDTH,
-    )
-
-    sky_condition = pn.widgets.Select(
-        name="Sky condition",
-        options=["Clear", "Thin clouds", "Cloudy"],
-        value="Clear",
-        width=FORM_WIDGET_WIDTH,
-    )
-
-    for widget in (seeing, airmass_inst, sky_condition):
-        widget.disabled = True
-
-    # --------------------------------------------------
     # Layout
     # --------------------------------------------------
 
@@ -557,11 +518,6 @@ def make_observing_conditions_tab(app_state: AppState):
             ignore_if_fli,
             sizing_mode="stretch_width",
         ),
-        pn.Spacer(height=10), divider_h, pn.Spacer(height=10),
-        title_precision,
-        seeing,
-        airmass_inst,
-        sky_condition,
         sizing_mode="stretch_width",
     )
 
@@ -793,5 +749,106 @@ def make_time_tab(app_state):
 
         status,
 
+        sizing_mode="stretch_width",
+    )
+
+def make_planet_rv_tab(app_state: AppState):
+    # ----------------------------
+    # Planet & RV precision tabs
+    # ----------------------------
+
+    def make_planet_controls():
+        return pn.Column(
+            pn.pane.Markdown("### Planet parameters"),
+            pn.Row(
+                pn.widgets.FloatInput(
+                    name="Mass [MJup]",
+                    width=FORM_WIDGET_WIDTH // 2,
+                    disabled=True),
+                pn.widgets.FloatInput(
+                    name="Orbital period [days]",
+                    width=FORM_WIDGET_WIDTH // 2,
+                    disabled=True),
+                pn.widgets.FloatInput(
+                    name="Stellar Mass [MSun]",
+                    width=FORM_WIDGET_WIDTH // 2,
+                    disabled=True),
+            ),
+            sizing_mode="stretch_width",
+        )
+
+    def make_rv_precision_controls():
+        return pn.Column(
+            pn.pane.Markdown(
+                "### RV precision (not implemented yet)\n"
+                "<span style='color:#b00020; font-style:italic;'>Disabled</span>",
+            ),
+            pn.Row(
+                pn.widgets.FloatInput(
+                    name="Exposure time [s]",
+                    width=FORM_WIDGET_WIDTH // 2,
+                    disabled=True),
+                pn.widgets.FloatInput(
+                    name="Target S/N",
+                    width=FORM_WIDGET_WIDTH // 2,
+                    disabled=True),
+                pn.widgets.Select(
+                    name="RV model",
+                    options=["Photon-limited", "Instrument-limited"],
+                    width=FORM_WIDGET_WIDTH // 2,
+                    disabled=True,
+                ),
+            ),
+            sizing_mode="stretch_width",
+        )
+
+    # --------------------------------------------------
+    # Instantaneous conditions (disabled)
+    # --------------------------------------------------
+
+    title_precision = pn.pane.HTML(
+        "<div style='font-size: 1.3em; font-weight: normal;'>RV Precision Conditions</div>"
+        "<span style='color:#b00020; font-style:italic;'>"
+        "(Not implemented yet)"
+        "</span></strong>",
+    )
+
+    seeing = pn.widgets.FloatSlider(
+        name="Seeing (arcsec)",
+        start=0.3,
+        end=3.0,
+        value=1.0,
+        step=0.1,
+        width=int(FORM_WIDGET_WIDTH * 0.6),
+    )
+
+    airmass_inst = pn.widgets.FloatInput(
+        name="Airmass [ ]",
+        value=1.5,
+        start=1.0,
+        end=3.0,
+        step=0.1,
+        width=FORM_WIDGET_WIDTH // 2,
+    )
+
+    sky_condition = pn.widgets.Select(
+        name="Sky condition",
+        options=["Clear", "Thin clouds", "Cloudy"],
+        value="Clear",
+        width=FORM_WIDGET_WIDTH // 2,
+    )
+
+    for widget in (seeing, airmass_inst, sky_condition):
+        widget.disabled = True
+
+    return pn.Column(
+        make_planet_controls(),
+        pn.Spacer(height=10),
+        make_rv_precision_controls(),
+
+        pn.Spacer(height=10), divider_h, pn.Spacer(height=10),
+
+        title_precision,
+        pn.Row(seeing, airmass_inst, sky_condition),
         sizing_mode="stretch_width",
     )

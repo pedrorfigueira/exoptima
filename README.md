@@ -88,13 +88,15 @@ exoptima/
     ├── config/
     │   ├── __init__.py
     │   ├── instruments.py
+    │   ├── conditions.py
     │   └── layout.py
     │
     ├── tabs/
     │   ├── __init__.py
     │   ├── interface.py
     │   ├── controls.py
-    │   └── display.py
+    │   ├── display.py
+    │   └── export.py
     │
     └── assets/
         ├── exoptima-alogo.svg
@@ -115,8 +117,6 @@ Pedro Figueira acknowledges financial support from the Severo Ochoa grant CEX202
 
 This project depends on several open-source scientific and visualization packages. We gratefully acknowledge their authors and contributors:
 
-[NumPy](https://numpy.org/) and [Scipy](https://scipy.org/) provide the core array infrastructure and numerical utilities used in backend processing. [Astropy](https://www.astropy.org/) provides tools for FITS and for reading, parsing, and handling astronomical data formats. [Matplotlib](https://matplotlib.org/) is use for plotting. 
-
-[Bokeh](https://bokeh.org/) enables interactive plotting and image rendering in the browser while [Panel](https://panel.holoviz.org/) enables the UI layout, reactive widgets, and server backend that make this application possible as a web interface.
+[NumPy](https://numpy.org/) and [Scipy](https://scipy.org/) provide the core array infrastructure and numerical utilities used in backend processing. [Astropy](https://www.astropy.org/) provides tools for FITS and for reading, parsing, and handling astronomical data formats. [Matplotlib](https://matplotlib.org/) is used for plotting and[Panel](https://panel.holoviz.org/) enables the UI layout, reactive widgets, and server backend that make this application possible as a web interface.
 
 We extend sincere thanks to all of these communities for developing and maintaining the scientific Python ecosystem.
