@@ -32,8 +32,8 @@ class ObservabilityResult:
     altitude: u.Quantity
     mask: np.ndarray
     observable_time: u.Quantity
-    sunset: Time
-    sunrise: Time
+    night_start: Time
+    night_end: Time
     night_duration: u.Quantity
     is_observable: bool
     min_airmass : float
@@ -74,6 +74,19 @@ class AppState(param.Parameterized):
         allow_None=True,
         default=None,
         doc="Reference time for observability computation (UTC)"
+    )
+
+    # ---------------------------------
+    # Night limits
+    # ---------------------------------
+    night_definition = param.ObjectSelector(
+        default="Nautical twilight",
+        objects=[
+            "Sunset to sunrise",
+            "Nautical twilight",
+            "Astronomical twilight",
+        ],
+        doc="Definition of night boundaries for observability",
     )
 
     def __init__(self, **params):

@@ -6,6 +6,9 @@ __pycache__/
 build/
 *.egg-info/
 
+# editor artifacts
+.idea/
+
 # Summaries created
 *.pdf
 *.txt

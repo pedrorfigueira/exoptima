@@ -102,11 +102,7 @@ exoptima/
 ```
 
 ## TODO
-
-- [ ] Check behavior of time constr on plot and on starting as Now
-- [ ] Include information on statistics of where the timestamp is
-- [ ] re-implement summary-pdf, on top
-- [ ] add icon for busy / done /failed (fading 2s)
+- [ ] Check behavior of time constr on plot
 - [ ] Implement monthly weather-loss statistics
 
 ## 📄 License

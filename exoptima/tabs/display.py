@@ -13,6 +13,7 @@ from astropy.time import Time
 
 from exoptima.core.state import AppState
 from exoptima.config.layout import DISPLAY_MAIN_FRACTION, RV_OUTPUT_FRACTION
+from exoptima.tabs.export import make_save_button
 
 # Custom divider
 
@@ -26,7 +27,7 @@ divider_h = pn.Spacer(
 
 def make_daily_observability_tab(app_state: AppState):
 
-    plot_pane = pn.pane.Matplotlib()
+    plot_pane = pn.pane.Matplotlib(min_height=300, sizing_mode="stretch_both")
     stats_md = pn.pane.Markdown("### Summary\nNo data yet.")
 
     def update_daily_observability(*_):
@@ -37,8 +38,8 @@ def make_daily_observability_tab(app_state: AppState):
         times = obs.time_grid
         mask = obs.mask
 
-        sunset = obs.sunset
-        sunrise = obs.sunrise
+        night_start = obs.night_start
+        night_end = obs.night_end
 
         alt = obs.altitude.to_value(u.deg)
 
@@ -62,8 +63,8 @@ def make_daily_observability_tab(app_state: AppState):
         fig, ax_alt = plt.subplots(figsize=(8, 4), tight_layout=True)
 
         # --- Daytime shading ---
-        ax_alt.axvspan(times[0].datetime, sunset.datetime, color="lightgrey", alpha=0.4)
-        ax_alt.axvspan(sunrise.datetime, times[-1].datetime, color="lightgrey", alpha=0.4)
+        ax_alt.axvspan(times[0].datetime, night_start.datetime, color="lightgrey", alpha=0.4)
+        ax_alt.axvspan(night_end.datetime, times[-1].datetime, color="lightgrey", alpha=0.4)
 
         # --- Altitude (left axis) ---
         # Observable (green)
@@ -135,7 +136,7 @@ def make_daily_observability_tab(app_state: AppState):
 
 
         # Night date: use sunset date
-        night_date = sunset.to_datetime().date().isoformat()
+        night_date = night_start.to_datetime().date().isoformat()
 
         # ----------------------------
         # Night label
@@ -208,8 +209,7 @@ def make_daily_observability_tab(app_state: AppState):
             return f"""
         ### Summary 
         <span style="color:{verdict_color}; font-weight:bold;"> {verdict_text} </span>
-        
-        Instantaneous altitude: **{alt_ref:.1f}°**, instantaneous airmass: **{airmass_ref:.2f}**
+        (altitude: **{alt_ref:.1f}°**, airmass: **{airmass_ref:.2f}**)
 
         | Star | RA (α) | Dec (δ) | Observatory | Max airmass | Min duration | Min Moon sep | Min FLI |
         |:----:|:------:|:-------:|:-----------:|:-----------:|:------------:|:------------:|:-------:|
@@ -220,7 +220,7 @@ def make_daily_observability_tab(app_state: AppState):
         During the night, the target reaches a **minimum airmass of {obs.min_airmass:.2f}**,  a **minimum Moon separation of {obs.min_moon_sep:.1f}°**,  with an **average Moon illumination of {obs.mean_fli:.2f}**.
 
         **Night:**  
-        Sunset: **{obs.sunset.iso[11:16]} UT**; Sunrise: **{obs.sunrise.iso[11:16]} UT**  Total night duration: **{obs.night_duration.to_value(u.hour):.2f} h**
+        Beginning: **{obs.night_start.iso[11:16]} UT**; End: **{obs.night_end.iso[11:16]} UT**  Total night duration: **{obs.night_duration.to_value(u.hour):.2f} h**
         """
 
 
@@ -233,29 +233,29 @@ def make_daily_observability_tab(app_state: AppState):
 
         stats_md.object = _make_daily_stats_table(app_state, hours, minutes)
 
+    #note this does not update when refrence time is changed. For that to happen wt would have to be:
+    # app_state.param.watch(
+    #     update_daily_observability,
+    #     ["observability", "reference_time"],
+    # )
     app_state.param.watch(update_daily_observability, ["observability"])
 
-    main_view = pn.Column(
-        plot_pane,
-        sizing_mode="stretch_both",
-        styles={
-            "flex": f"0 0 {DISPLAY_MAIN_FRACTION * 100:.0f}%",
-        },
-    )
+    # ----------------------------
+    # Organization in panes with export buttons
+    # ----------------------------
 
-    summary_view = pn.Column(
-        stats_md,
-        sizing_mode="stretch_both",
-        styles={
-            "flex": f"0 0 {(1. - DISPLAY_MAIN_FRACTION) * 100:.0f}%",
-        },
-    )
+    plot_view = make_save_button(plot_pane, filename="daily_observability.pdf")
 
+    summary_view = make_save_button(stats_md, filename="daily_observability_summary.txt")
 
     return pn.Column(
-        main_view,
+        pn.Column(plot_view,
+                  styles={"flex": f"0 0 {DISPLAY_MAIN_FRACTION * 100:.0f}%"},
+                  ),
         divider_h,
-        summary_view,
+        pn.Column(summary_view,
+                  styles={ "flex": f"0 0 {(1. - DISPLAY_MAIN_FRACTION) * 100:.0f}%"},
+                  ),
         sizing_mode="stretch_both",
     )
 

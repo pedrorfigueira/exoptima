@@ -4,7 +4,7 @@ import panel as pn
 pn.extension()
 
 from datetime import datetime
-from dateutil.relativedelta import relativedelta
+from zoneinfo import ZoneInfo
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -568,24 +568,54 @@ def make_observing_conditions_tab(app_state: AppState):
 
 def make_time_tab(app_state):
 
+    night_duration_title =  pn.pane.HTML("<div style='font-size: 1.3em; font-weight: normal;'>Night limits</div>")
+
+    # night duration
+    night_duration_select = pn.widgets.Select(
+        options={
+            "sunset_sunrise": "Sunset to sunrise",
+            "nautical": "Nautical twilight",
+            "astronomical": "Astronomical twilight",
+        },
+        value=app_state.night_definition,
+        width=FORM_WIDGET_WIDTH,
+    )
+
     time_title =  pn.pane.HTML("<div style='font-size: 1.3em; font-weight: normal;'>Reference Time</div>")
 
-    # ----------------------------
     # Mode selection
-    # ----------------------------
     mode_select = pn.widgets.RadioButtonGroup(
-        options=["Now", "Time"],
+        options=["Now", "Set Time in UTC", "Set Time in Local Time"],
         value="Now",
     )
 
     time_input = pn.widgets.TextInput(
-        placeholder="HH:MM DD-MM-YYYY",
+        placeholder="YYYY-MM-DD HH:MM",
         disabled=True,
     )
 
-    # ----------------------------
+    timezone_select = pn.widgets.Select(
+        name="Time zone",
+        options=[
+            "Local Time of Observatory",
+            "UTC",
+            "Europe/Paris",
+            "Europe/London",
+            "America/Santiago",
+            "America/New_York",
+            "Asia/Tokyo",
+        ],
+        value="Local Time of Observatory",
+        disabled=True,
+    )
+
+    convert_btn = pn.widgets.Button(
+        name="Convert to UT",
+        button_type="primary",
+        disabled=True,
+    )
+
     # Increment controls
-    # ----------------------------
     increment = pn.widgets.Select(options=["+", "-"], value="+", width=FORM_WIDGET_WIDTH // 4)
     step = pn.widgets.Select(options=["1h", "1day", "1month", "1year"], value="1day", width=FORM_WIDGET_WIDTH // 2)
 
@@ -601,8 +631,15 @@ def make_time_tab(app_state):
     # Helpers
     # ----------------------------
     def _parse_time(text: str) -> Time:
-        dt = datetime.strptime(text, "%H:%M %d-%m-%Y")
+        dt = datetime.strptime(text, "%Y-%m-%d %H:%M")
         return Time(dt, scale="utc")
+
+    def _parse_naive_time(text: str) -> datetime:
+        return datetime.strptime(text, "%Y-%m-%d %H:%M")
+
+    def _observatory_timezone():
+        lon = app_state.instrument.observatory.longitude_deg
+        return "Etc/GMT%+d" % int(round(-lon / 15))
 
     def _apply_offset():
         delta = {
@@ -615,57 +652,146 @@ def make_time_tab(app_state):
         if increment.value == "-":
             delta = -delta
 
-        app_state.reference_time = app_state.reference_time + delta
-
+        app_state.reference_time += delta
         time_input.value = app_state.reference_time.to_datetime().strftime(
-            "%H:%M %d-%m-%Y"
+            "%Y-%m-%d %H:%M"
         )
+
         status.object = f"Reference time set to **{app_state.reference_time.iso[:16]} UTC**"
 
     # ----------------------------
     # Callbacks
     # ----------------------------
+    def _on_night_duration_change(event):
+        app_state.night_definition = event.new
+
+
     def _on_mode_change(event):
-        if event.new == "Now":
+        mode = event.new
+
+        if mode == "Now":
             time_input.disabled = True
+            timezone_select.disabled = True
+            convert_btn.disabled = True
+
+            local_time_row.visible = False
+
             app_state.reference_time = Time.now()
             status.object = "Using current UTC time."
-        else:
+
+        elif mode == "Set Time in UTC":
             time_input.disabled = False
+            timezone_select.disabled = True
+            convert_btn.disabled = True
+
+            local_time_row.visible = False
+
             time_input.value = app_state.reference_time.to_datetime().strftime(
-                "%H:%M %d-%m-%Y"
+                "%Y-%m-%d %H:%M"
             )
-            status.object = "Enter a UTC time or use the increment controls."
+            status.object = "Enter a UTC time."
+
+        elif mode == "Set Time in Local Time":
+            time_input.disabled = False
+            timezone_select.disabled = False
+            convert_btn.disabled = False
+
+            local_time_row.visible = True
+
+            status.object = (
+                "Enter a local time, select the time zone, then press "
+                "**Convert to UT**."
+            )
 
     def _on_time_edit(event):
-        if mode_select.value != "Time":
+        if mode_select.value != "Set Time in UTC":
             return
         try:
             app_state.reference_time = _parse_time(time_input.value.strip())
             status.object = f"Reference time set to **{app_state.reference_time.iso[:16]} UTC**"
         except Exception:
             status.object = (
-                "❌ Invalid format. Use **HH:MM DD-MM-YYYY**, e.g. `22:30 15-01-2026`"
+                "❌ Invalid format. Use **YYYY-MM-DD HH:MM**, e.g. `2026-01-15 22:30`"
             )
+
+    def _on_convert_to_utc(event=None):
+        try:
+            dt_naive = _parse_naive_time(time_input.value.strip())
+
+            if timezone_select.value == "Local Time of Observatory":
+                tz_name = _observatory_timezone()
+            else:
+                tz_name = timezone_select.value
+
+            dt_local = dt_naive.replace(tzinfo=ZoneInfo(tz_name))
+            dt_utc = dt_local.astimezone(ZoneInfo("UTC"))
+
+            app_state.reference_time = Time(dt_utc)
+            status.object = (
+                f"Converted to UTC: **{app_state.reference_time.iso[:16]} UTC**"
+            )
+
+        except Exception as e:
+            status.object = f"❌ Conversion failed: {e}"
 
     # ----------------------------
     # Wiring
     # ----------------------------
+
+    night_duration_select.param.watch(_on_night_duration_change, "value")
+
+    # Initialize default state (Now)
+    app_state.reference_time = Time.now()
+    status.object = "Using current UTC time."
+
     mode_select.param.watch(_on_mode_change, "value")
     time_input.param.watch(_on_time_edit, "value")
     update_btn.on_click(lambda *_: _apply_offset())
-
-    # Initialize state
-    app_state.reference_time = Time.now()
+    convert_btn.on_click(_on_convert_to_utc)
 
     # ----------------------------
     # Layout
     # ----------------------------
+
+    utc_time_row = pn.Row(
+        time_input,
+        sizing_mode="stretch_width",
+    )
+
+    local_time_row = pn.Row(
+        timezone_select,
+        convert_btn,
+        sizing_mode="stretch_width",
+    )
+
+    # Hide local-time controls by default
+    local_time_row.visible = False
+
+    increment_row = pn.Row(
+        increment,
+        step,
+        update_btn,
+        sizing_mode="stretch_width",
+    )
+
     return pn.Column(
+
+        night_duration_title,
+        night_duration_select,
+        pn.Spacer(height=10),
+
         time_title,
         mode_select,
-        time_input,
-        pn.Row(increment, step, update_btn),
+        pn.Spacer(height=8),
+
+        utc_time_row,
+        local_time_row,
+        pn.Spacer(height=10),
+
+        increment_row,
+        pn.Spacer(height=3),
+
         status,
+
         sizing_mode="stretch_width",
     )

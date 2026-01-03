@@ -28,19 +28,60 @@ def recompute_observability(app_state: AppState) -> ObservabilityResult | None:
         unit=(u.hourangle, u.deg),
     )
 
-    # Timestamp se for observability
-    tstamp = app_state.reference_time or Time.now()
+    # Timestamp used for observability
+    ref_time = app_state.reference_time or Time.now()
 
-    # Night logic (as before)
-    if observer.is_night(tstamp):
-        sunset = observer.sun_set_time(tstamp, which="previous")
-        sunrise = observer.sun_rise_time(tstamp, which="next")
-    else:
-        sunset = observer.sun_set_time(tstamp, which="next")
-        sunrise = observer.sun_rise_time(sunset, which="next")
+    # night limits helper
+    def _night_bounds(observer, ref_time, night_def):
+        """
+        Return (night_start, night_end) corresponding to the night
+        containing ref_time if ref_time is at night, or the next night
+        otherwise.
+        """
 
-    t_start = sunset - DAYTIME_INTERVAL
-    t_end = sunrise + DAYTIME_INTERVAL
+        if night_def == "Sunset to sunrise":
+            is_night = observer.is_night(ref_time)
+
+            if is_night:
+                t_start = observer.sun_set_time(ref_time, which="previous")
+                t_end = observer.sun_rise_time(ref_time, which="next")
+            else:
+                t_start = observer.sun_set_time(ref_time, which="next")
+                t_end = observer.sun_rise_time(t_start, which="next")
+
+        elif night_def == "Nautical twilight":
+            is_night = observer.is_night(ref_time, horizon=-12 * u.deg)
+
+            if is_night:
+                t_start = observer.twilight_evening_nautical(ref_time, which="previous")
+                t_end = observer.twilight_morning_nautical(ref_time, which="next")
+            else:
+                t_start = observer.twilight_evening_nautical(ref_time, which="next")
+                t_end = observer.twilight_morning_nautical(t_start, which="next")
+
+        elif night_def == "Astronomical twilight":
+            is_night = observer.is_night(ref_time, horizon=-18 * u.deg)
+
+            if is_night:
+                t_start = observer.twilight_evening_astronomical(ref_time, which="previous")
+                t_end = observer.twilight_morning_astronomical(ref_time, which="next")
+            else:
+                t_start = observer.twilight_evening_astronomical(ref_time, which="next")
+                t_end = observer.twilight_morning_astronomical(t_start, which="next")
+
+        else:
+            raise ValueError(f"Unknown night definition: {night_def}")
+
+        return t_start, t_end
+
+    night_start, night_end = _night_bounds(
+        observer,
+        ref_time,
+        app_state.night_definition,
+    )
+
+    t_start = night_start - DAYTIME_INTERVAL
+    t_end = night_end + DAYTIME_INTERVAL
 
     times = t_start + np.linspace(
         0,
@@ -80,7 +121,7 @@ def recompute_observability(app_state: AppState) -> ObservabilityResult | None:
     meets_min_duration = observable_time >= app_state.conditions.min_duration
     is_observable = bool(meets_min_duration)
 
-    night_duration = (sunrise - sunset).to(u.hour)
+    night_duration = (night_end - night_start).to(u.hour)
 
     min_airmass = np.nanmin(1.0 / np.sin(altitude[mask].to_value(u.rad)))
     min_moon_sep = moon_sep[mask].min().to_value(u.deg)
@@ -91,8 +132,8 @@ def recompute_observability(app_state: AppState) -> ObservabilityResult | None:
         altitude=altitude,
         mask=mask,
         observable_time=observable_time,
-        sunset=sunset,
-        sunrise=sunrise,
+        night_start=night_start,
+        night_end=night_end,
         night_duration=night_duration,
         is_observable=is_observable,
         min_airmass=min_airmass,
@@ -103,7 +144,7 @@ def recompute_observability(app_state: AppState) -> ObservabilityResult | None:
     app_state.observability = result
     return result
 
-
+###
 
 def recompute_precision(app_state):
     if app_state.star is None or app_state.instrument is None:
