@@ -14,11 +14,8 @@ CONTROLS_PANEL_FRACTION = 0.3       # left section
 # Vertical spacing
 HEADER_SPACING = 10
 
-# Output tabs: fraction for plots vs statistics
+# Output tabs: fraction for plots vs summary / statistics
 DISPLAY_MAIN_FRACTION = 0.7
-
-# RV precision tab: fraction of space for output vs planet controls
-RV_OUTPUT_FRACTION = 0.7            # upper section
 
 # ------------------------------------------------------------------
 # Button, Form, and widget sizing
@@ -36,5 +33,9 @@ BUTTON_HEIGHT = 36
 
 # Daytime period shown before sunset and after sunrise
 DAYTIME_INTERVAL = 0.5*u.hour
+
 # number of points in UT time in daily observability plots
 DAY_OBS_NSAMPLES = 300
+
+# step using in labeling x axis (1 is labelld every step)
+MONTH_XLABEL_STEP = 3

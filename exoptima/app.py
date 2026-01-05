@@ -8,13 +8,20 @@ from exoptima.config.layout import HEADER_SPACING, CONTROLS_PANEL_FRACTION
 from exoptima.tabs.interface import (
     make_header, make_control_tabs, make_output_tabs)
 
-from exoptima.core.app_logic import recompute_observability
+from exoptima.core.observability import (
+    recompute_observability, recompute_monthly_observability, recompute_yearly_observability)
 
 from exoptima.core.state import AppState
 app_state = AppState()
 
 from exoptima.config.instruments import INSTRUMENTS
 instrument = INSTRUMENTS["HARPS"]
+
+import warnings
+from astropy.utils.exceptions import AstropyWarning
+# to silence the warnings
+# "Angular separation can depend on the direction of the transformation. [astropy.coordinates.baseframe]"
+warnings.simplefilter("ignore", AstropyWarning)
 
 # ------------------------------------------------------------------
 # Main application
@@ -63,14 +70,17 @@ def create_app():
     )
 
 def _on_compute_obs(event=None):
+    # Clear cached nights on compute, allowing parameter change
+    app_state.night_cache.clear()
 
-    result = recompute_observability(app_state)
+    recompute_observability(app_state)
 
-    if result is None:
-        print("Observability not computed (missing inputs)")
-        return
+    if app_state.observability_scope in ("Month", "Year"):
+        recompute_monthly_observability(app_state)
 
-    print("Observability result:", result)
+    if app_state.observability_scope == "Year":
+        recompute_yearly_observability(app_state)
+
 
 app_state.on_compute_observability = _on_compute_obs
 

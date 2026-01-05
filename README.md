@@ -83,12 +83,13 @@ exoptima/
     ├── core/
     │   ├── __init__.py
     │   ├── state.py       
-    │   └── app_logic.py   
+    │   ├── observability.py       
+    │   └── precision.py   
     │
     ├── config/
     │   ├── __init__.py
     │   ├── instruments.py
-    │   ├── conditions.py
+    │   ├── computation.py
     │   └── layout.py
     │
     ├── tabs/

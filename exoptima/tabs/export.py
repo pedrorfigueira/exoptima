@@ -72,4 +72,3 @@ def make_save_button(pane, filename):
     else:
         raise ValueError("Unsupported export format")
 
-

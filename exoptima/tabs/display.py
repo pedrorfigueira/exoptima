@@ -1,5 +1,7 @@
 # Display tabs
 
+from datetime import datetime, timedelta
+
 import numpy as np
 
 import panel as pn
@@ -10,10 +12,13 @@ import matplotlib.dates as mdates
 
 import astropy.units as u
 from astropy.time import Time
+from astropy.coordinates import SkyCoord
 
-from exoptima.core.state import AppState
-from exoptima.config.layout import DISPLAY_MAIN_FRACTION, RV_OUTPUT_FRACTION
+from exoptima.core.state import AppState, ObservabilityResult, MultiNightObservability
+from exoptima.config.layout import DISPLAY_MAIN_FRACTION, MONTH_XLABEL_STEP
 from exoptima.tabs.export import make_save_button
+
+from exoptima.core.observability import compute_single_night_observability
 
 # Custom divider
 
@@ -23,7 +28,24 @@ divider_h = pn.Spacer(
     styles={"background-color": "#e0e0e0"},
 )
 
-###
+def make_display_tab(plot_pane, stats_pane, plot_save_filename="plot.pdf", stats_save_filename="summary.txt"):
+
+    plot_view = make_save_button(plot_pane, plot_save_filename)
+    summary_view = make_save_button(stats_pane, stats_save_filename)
+
+    return pn.Column(
+        pn.Column(plot_view,
+                  styles={"flex": f"0 0 {DISPLAY_MAIN_FRACTION * 100:.0f}%"},
+                  ),
+        divider_h,
+        pn.Column(summary_view,
+                  styles={"flex": f"0 0 {(1. - DISPLAY_MAIN_FRACTION) * 100:.0f}%"},
+                  ),
+        sizing_mode="stretch_both",
+    )
+
+
+#####
 
 def make_daily_observability_tab(app_state: AppState):
 
@@ -58,7 +80,6 @@ def make_daily_observability_tab(app_state: AppState):
 
         # Instantaneous airmass from altitude
         airmass_ref = 1.0 / np.sin(np.deg2rad(alt_ref))
-
 
         fig, ax_alt = plt.subplots(figsize=(8, 4), tight_layout=True)
 
@@ -134,23 +155,18 @@ def make_daily_observability_tab(app_state: AppState):
 
         ax_alt.legend(fontsize=8, loc="upper left")
 
-
         # Night date: use sunset date
         night_date = night_start.to_datetime().date().isoformat()
 
         # ----------------------------
         # Night label
         # ----------------------------
-        ref_time = (
-            app_state.reference_time.iso[:16] + " UTC"
-            if app_state.reference_time is not None
-            else "Now (UTC)"
-        )
+        ref_time_label = app_state.reference_time.iso[:16] + " UTC"
 
         ax_alt.text(
             0.98,
             0.95,
-            f"Night: {night_date}\nRef: {ref_time}",
+            f"Night: {night_date}\nRef: {ref_time_label}",
             transform=ax_alt.transAxes,
             ha="right",
             va="top",
@@ -174,15 +190,15 @@ def make_daily_observability_tab(app_state: AppState):
         plt.close(fig)
 
         def _instant_badge(is_ok: bool, t_ref: Time) -> tuple[str, str]:
-            t_str = t_ref.iso[11:16]
+            dt_str = t_ref.iso[:16]  # YYYY-MM-DD HH:MM
             if is_ok:
                 return (
-                    f"✔ Observable at {t_str} UT",
+                    f"✔ Observable at {dt_str} UTC",
                     "#2e7d32",
                 )
             else:
                 return (
-                    f"✖ Not observable at {t_str} UT",
+                    f"✖ Not observable at {dt_str} UTC",
                     "#b00020",
                 )
 
@@ -207,22 +223,17 @@ def make_daily_observability_tab(app_state: AppState):
                 time_window_str = "(not observable)"
 
             return f"""
-        ### Summary 
+        ### Summary for Night Observability
         <span style="color:{verdict_color}; font-weight:bold;"> {verdict_text} </span>
         (altitude: **{alt_ref:.1f}°**, airmass: **{airmass_ref:.2f}**)
+   
+        **Total observable time:** **{hours} h {minutes} min** {time_window_str}
 
-        | Star | RA (α) | Dec (δ) | Observatory | Max airmass | Min duration | Min Moon sep | Min FLI |
-        |:----:|:------:|:-------:|:-----------:|:-----------:|:------------:|:------------:|:-------:|
-        | **{app_state.star.name}** | {app_state.star.ra} | {app_state.star.dec} | {app_state.instrument.observatory.name} | {app_state.conditions.max_airmass} | {app_state.conditions.min_duration} | {app_state.conditions.min_moon_separation}° | {app_state.conditions.ignore_moon_if_fli_above} |
-        
-        **Observable time:** **{hours} h {minutes} min** {time_window_str}
-
-        During the night, the target reaches a **minimum airmass of {obs.min_airmass:.2f}**,  a **minimum Moon separation of {obs.min_moon_sep:.1f}°**,  with an **average Moon illumination of {obs.mean_fli:.2f}**.
+        During the night, the target reaches a **minimum airmass of {obs.min_airmass:.2f}**,  a **minimum Moon separation of {obs.min_moon_sep:.1f}°**,  with an **average Moon illumination of {obs.mean_fli:.2f}**
 
         **Night:**  
         Beginning: **{obs.night_start.iso[11:16]} UT**; End: **{obs.night_end.iso[11:16]} UT**  Total night duration: **{obs.night_duration.to_value(u.hour):.2f} h**
         """
-
 
         # ----------------------------
         # Statistics
@@ -233,32 +244,196 @@ def make_daily_observability_tab(app_state: AppState):
 
         stats_md.object = _make_daily_stats_table(app_state, hours, minutes)
 
-    #note this does not update when refrence time is changed. For that to happen wt would have to be:
+    #note this does not update when refreence time is changed. For that to happen wt would have to be:
     # app_state.param.watch(
     #     update_daily_observability,
     #     ["observability", "reference_time"],
     # )
     app_state.param.watch(update_daily_observability, ["observability"])
 
-    # ----------------------------
-    # Organization in panes with export buttons
-    # ----------------------------
+    return make_display_tab(plot_pane, stats_md, "NightObs_plot.pdf", "NightObs_summary.txt")
 
-    plot_view = make_save_button(plot_pane, filename="daily_observability.pdf")
 
-    summary_view = make_save_button(stats_md, filename="daily_observability_summary.txt")
+#####
 
-    return pn.Column(
-        pn.Column(plot_view,
-                  styles={"flex": f"0 0 {DISPLAY_MAIN_FRACTION * 100:.0f}%"},
-                  ),
-        divider_h,
-        pn.Column(summary_view,
-                  styles={ "flex": f"0 0 {(1. - DISPLAY_MAIN_FRACTION) * 100:.0f}%"},
-                  ),
-        sizing_mode="stretch_both",
-    )
+def make_monthly_observability_tab(app_state: AppState):
 
+    plot_pane = pn.pane.Matplotlib(sizing_mode="stretch_both")
+    stats_md = pn.pane.Markdown("### Monthly summary\nNo data yet.")
+
+    def hours_since_night_start(times: Time, night_start: Time) -> np.ndarray:
+        return (times - night_start).to_value(u.hour)
+
+    def night_duration_hours(obs: ObservabilityResult) -> float:
+        return obs.night_duration.to_value(u.hour)
+
+    def update_monthly_observability(*_):
+        multi = app_state.multi_night_observability
+        if multi is None or not multi.nights:
+            return
+
+        ref_date = app_state.reference_time.to_datetime().date()
+
+        ref_index = next(
+            (
+                i for i, n in enumerate(multi.nights)
+                if n.date == ref_date
+            ),
+            None,
+        )
+
+        max_night = max(night_duration_hours(n.result) for n in multi.nights)
+
+        fig, ax = plt.subplots(figsize=(9, 5), tight_layout=True)
+
+        for x, night in enumerate(multi.nights):
+            obs = night.result
+
+            # Time grid relative to night start
+            y = hours_since_night_start(obs.time_grid, obs.night_start)
+
+            # Night shading (entire night)
+            ax.vlines(
+                x,
+                0,
+                night_duration_hours(obs),
+                color="lightgrey",
+                linewidth=10,
+                alpha=0.4,
+                zorder=1,
+            )
+
+            # Observable segments plotting
+            night_len = night_duration_hours(obs)
+
+            for j in range(len(y) - 1):
+                if not obs.mask[j]:
+                    continue
+
+                y0 = y[j]
+                y1 = y[j + 1]
+
+                # Skip anything fully outside the night
+                if y1 <= 0 or y0 >= night_len:
+                    continue
+
+                # Clip to night boundaries
+                y0c = max(y0, 0.0)
+                y1c = min(y1, night_len)
+
+                ax.vlines(
+                    x,
+                    y0c,
+                    y1c,
+                    color="#2e7d32",
+                    linewidth=6,
+                    zorder=3,
+                )
+
+
+        ax.set_ylim(0, max_night)
+
+        # X-axis: nights and their labeling
+        x_positions = np.arange(len(multi.nights))
+        label_positions = x_positions[::MONTH_XLABEL_STEP]
+
+        ax.set_xticks(label_positions)
+        ax.set_xticklabels(
+            [multi.nights[i].date.isoformat() for i in label_positions],
+            rotation=45,
+            ha="right",
+            fontsize=8,
+        )
+
+        # labeling tonight
+        if ref_index is not None:
+            ax.text(
+                ref_index,
+                0.5 * max_night,
+                "Tonight",
+                rotation=90,
+                ha="center",
+                va="center",
+                fontsize=9,
+                fontweight="bold",
+                color="#1565c0",
+                alpha=0.9,
+                zorder=5,
+                bbox=dict(
+                    boxstyle="round,pad=0.2",
+                    facecolor="white",
+                    edgecolor="#1565c0",
+                    alpha=0.8,
+                ),
+            )
+
+        ax.set_ylabel("Hours since night start", fontsize=9)
+        ax.set_xlabel("Night", fontsize=9)
+
+        plot_pane.object = fig
+        plt.close(fig)
+
+        def _make_monthly_stats_table(multi: MultiNightObservability) -> str:
+            """
+            Create a short textual summary for monthly observability.
+            """
+
+            nights = multi.nights
+
+            # Nights with any observability
+            observable_nights = [
+                n for n in nights if n.result.observable_time > 0 * u.hour
+            ]
+
+            n_obs = len(observable_nights)
+            n_total = len(nights)
+
+            first_date = nights[0].date.isoformat()
+            last_date = nights[-1].date.isoformat()
+
+            if n_obs == 0:
+                return f"""
+        ### Summary for Monthly Observability
+
+        - Observable nights: **0 / {n_total}**
+        - The target is not observable on any night in this period.
+        """
+
+            # Extract observable hours per night
+            obs_hours = np.array([
+                n.result.observable_time.to_value(u.hour)
+                for n in observable_nights
+            ])
+
+            dates = [n.date for n in observable_nights]
+
+            idx_min = int(np.argmin(obs_hours))
+            idx_max = int(np.argmax(obs_hours))
+
+            min_hours = obs_hours[idx_min]
+            max_hours = obs_hours[idx_max]
+
+            min_date = dates[idx_min].isoformat()
+            max_date = dates[idx_max].isoformat()
+
+            return f"""
+        ### Summary for Monthly Observability
+        
+        - **Observable nights:** **{n_obs} / {n_total}**
+          ({first_date} → {last_date})
+        
+        - **Maximum observable time:**  
+          **{max_hours:.2f} h** on **{max_date}**
+        
+        - **Minimum observable time:**  
+          **{min_hours:.2f} h** on **{min_date}**
+        """
+
+        stats_md.object = _make_monthly_stats_table(multi)
+
+    app_state.param.watch(update_monthly_observability, ["multi_night_observability"])
+
+    return make_display_tab(plot_pane, stats_md, "NightObs_plot.pdf", "NightObs_summary.txt")
 
 #####
 
@@ -275,7 +450,7 @@ def make_rv_precision_tab():
         ),
         sizing_mode="stretch_both",
         styles={
-            "flex": f"0 0 {RV_OUTPUT_FRACTION * 100:.0f}%",
+            "flex": f"0 0 {DISPLAY_MAIN_FRACTION * 100:.0f}%",
         },
     )
 
@@ -286,7 +461,7 @@ def make_rv_precision_tab():
         make_planet_tab(),
         sizing_mode="stretch_both",
         styles={
-            "flex": f"0 0 {(1. - RV_OUTPUT_FRACTION) * 100:.0f}%",
+            "flex": f"0 0 {(1. - DISPLAY_MAIN_FRACTION) * 100:.0f}%",
         },
     )
     return pn.Column(
@@ -297,7 +472,7 @@ def make_rv_precision_tab():
     )
 
 
-def make_output_tab(title: str):
+def make_output_dummy_tab(title: str):
     """Create a vertically split output tab with main view and statistics."""
     main_view = pn.Column(
         pn.pane.Markdown(f"### {title}\nMain results go here"),

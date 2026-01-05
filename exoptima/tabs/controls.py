@@ -267,7 +267,7 @@ def make_star_tab(app_state: AppState):
         ),
         coord_status,
         pn.Row(vmag, pn.Row(sp_type, sp_type_simbad)),
-        status,
+        pn.Row(pn.Spacer(width=20),status),
         sizing_mode="stretch_width",
     )
 
@@ -306,17 +306,6 @@ def make_instrument_tab(app_state: AppState):
         )
 
     # --------------------------------------------------
-    # Integration time
-    # --------------------------------------------------
-
-    integration_time = pn.widgets.FloatInput(
-        name="Integration time [s]",
-        value=INSTRUMENTS[instrument_select.value].int_time,
-        step=10.0,
-        width=FORM_WIDGET_WIDTH // 2,
-    )
-
-    # --------------------------------------------------
     # Weather losses
     # --------------------------------------------------
 
@@ -342,18 +331,10 @@ def make_instrument_tab(app_state: AppState):
     def _on_instrument_change(event):
         inst = INSTRUMENTS[event.new]
         app_state.instrument = inst
-        integration_time.value = inst.int_time
-        app_state.integration_time = inst.int_time
         update_instrument_info()
 
     instrument_select.param.watch(_on_instrument_change, "value")
     app_state.instrument = INSTRUMENTS[instrument_select.value]
-
-    def _on_integration_change(event):
-        app_state.integration_time = integration_time.value
-
-    integration_time.param.watch(_on_integration_change, "value")
-    app_state.integration_time = integration_time.value
 
     # --------------------------------------------------
     # Weather info logic (unchanged, lightly reorganized)
@@ -421,7 +402,6 @@ def make_instrument_tab(app_state: AppState):
     return pn.Column(
         instrument_select,
         instrument_info,
-        integration_time,
         pn.Spacer(height=10), divider_h, pn.Spacer(height=10),
         weather_title,
         weather_mode,
@@ -694,12 +674,9 @@ def make_time_tab(app_state):
     # Wiring
     # ----------------------------
 
-    night_duration_select.param.watch(_on_night_duration_change, "value")
-
-    # Initialize default state (Now)
-    app_state.reference_time = Time.now()
     status.object = "Using current UTC time."
 
+    night_duration_select.param.watch(_on_night_duration_change, "value")
     mode_select.param.watch(_on_mode_change, "value")
     time_input.param.watch(_on_time_edit, "value")
     update_btn.on_click(lambda *_: _apply_offset())

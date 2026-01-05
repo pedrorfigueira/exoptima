@@ -1,11 +1,18 @@
 import param
 from dataclasses import dataclass
+from typing import Sequence
+from datetime import date
+
 import numpy as np
 
 from astropy import units as u
 from astropy.time import Time
 
 from exoptima.config.instruments import Instrument
+
+# ----------------------------------------
+# Objects used to store params and results
+# ----------------------------------------
 
 @dataclass(frozen=True)
 class Star:
@@ -14,7 +21,6 @@ class Star:
     dec: str
     vmag: float | None
     sptype: str
-
 
 @dataclass
 class ObservingConditions:
@@ -40,6 +46,19 @@ class ObservabilityResult:
     min_moon_sep : float
     mean_fli : float
 
+@dataclass(frozen=True)
+class NightObservability:
+    date: date                     # civil date of the night (sunset date)
+    result: ObservabilityResult    # full single-night observability
+
+@dataclass(frozen=True)
+class MultiNightObservability:
+    nights: Sequence[NightObservability]
+
+# ----------------------------------------
+#   Master State
+# ----------------------------------------
+
 class AppState(param.Parameterized):
     # ---------------------------------
     # Scientific state
@@ -53,6 +72,23 @@ class AppState(param.Parameterized):
         allow_None=True,
         default=None,
     )
+
+    multi_night_observability = param.ClassSelector(
+        class_=MultiNightObservability,
+        allow_None=True,
+        default=None,
+        doc="Observability results for multiple nights",
+    )
+
+    # ---------------------------------
+    # UI / execution scope
+    # ---------------------------------
+    observability_scope = param.ObjectSelector(
+        default="Night",
+        objects=["Night", "Month", "Year"],
+        doc="Scope of observability computation",
+    )
+
 
     # ---------------------------------
     # UI validity / readiness flags
@@ -71,9 +107,9 @@ class AppState(param.Parameterized):
     # ---------------------------------
     reference_time = param.ClassSelector(
         class_=Time,
-        allow_None=True,
-        default=None,
-        doc="Reference time for observability computation (UTC)"
+        allow_None=False,
+        default=Time.now(),
+        doc="Reference time for observability computation (UTC)",
     )
 
     # ---------------------------------
@@ -89,11 +125,19 @@ class AppState(param.Parameterized):
         doc="Definition of night boundaries for observability",
     )
 
+    # ---------------------------------
+    # Cache of computed nights
+    # ---------------------------------
+    night_cache = param.Dict(
+        default={},
+        doc="Cache: date -> NightObservability"
+    )
+
     def __init__(self, **params):
         super().__init__(**params)
 
         # Import here to avoid config ↔ state circular dependency
-        from exoptima.config.conditions import (
+        from exoptima.config.computation import (
             DEFAULT_MAX_AIRMASS,
             DEFAULT_MIN_DURATION,
             DEFAULT_MIN_MOON_SEP,

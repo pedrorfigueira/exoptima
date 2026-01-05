@@ -56,7 +56,6 @@ class Instrument:
     observatory: Observatory
     resolution: int                     # lambda / delta_lambda
     telescope_diameter: float           # primary mirror diameter
-    int_time: float                     # integration time, seconds
     rv_precision_mps: Optional[float] = None
     weather_statistics: Optional[WeatherStatistics] = None
 
@@ -104,7 +103,6 @@ INSTRUMENTS: Dict[str, Instrument] = {
         observatory=CALAR_ALTO,
         resolution=60000,
         telescope_diameter=1.23,
-        int_time=900,
         rv_precision_mps=None,
         weather_statistics=WeatherStatistics(
             yearly_usable_fraction=0.70,
@@ -121,7 +119,6 @@ INSTRUMENTS: Dict[str, Instrument] = {
         observatory=LA_SILLA,
         resolution=60000,
         telescope_diameter=1.2,
-        int_time=900,
         rv_precision_mps=3.0,
         weather_statistics=WeatherStatistics(
             yearly_usable_fraction=0.80,
@@ -138,7 +135,6 @@ INSTRUMENTS: Dict[str, Instrument] = {
         observatory=LA_SILLA,
         resolution=115000,
         telescope_diameter=3.6,
-        int_time=900,
         rv_precision_mps=1.0,
         weather_statistics=WeatherStatistics(
             yearly_usable_fraction=0.80,
@@ -155,7 +151,6 @@ INSTRUMENTS: Dict[str, Instrument] = {
         observatory=LA_PALMA,
         resolution=115000,
         telescope_diameter=3.58,
-        int_time=900,
         rv_precision_mps=1.0,
         weather_statistics=WeatherStatistics(
             yearly_usable_fraction=0.70,
@@ -173,7 +168,6 @@ INSTRUMENTS: Dict[str, Instrument] = {
         observatory=PARANAL,
         resolution=140000,
         telescope_diameter=8.2,
-        int_time=900,
         rv_precision_mps=0.1,
         weather_statistics=WeatherStatistics(
             yearly_usable_fraction=0.90,
