@@ -1,4 +1,4 @@
-# Control tabs definition
+# Control section and tabs definitions
 
 import panel as pn
 pn.extension()
@@ -311,11 +311,15 @@ def make_instrument_tab(app_state: AppState):
 
     weather_title = pn.pane.HTML("<div style='font-size: 1.3em; font-weight: normal;'>Weather Losses (for Statistics)</div>")
 
-    weather_mode = pn.widgets.RadioButtonGroup(
+    weather_losses_mode = pn.widgets.RadioButtonGroup(
         options=["None", "Yearly average", "Monthly average"],
         value="None",
         width=FORM_WIDGET_WIDTH,
     )
+
+    # Two-way binding
+    weather_losses_mode.link(app_state, value="weather_losses_mode")
+
 
     info_box = pn.pane.Markdown(
         "",
@@ -346,11 +350,11 @@ def make_instrument_tab(app_state: AppState):
 
         table_box.clear()
 
-        if weather_mode.value == "None" or stats is None:
+        if weather_losses_mode.value == "None" or stats is None:
             info_box.object = "Statistics computed without weather losses."
             return
 
-        if weather_mode.value == "Yearly average":
+        if weather_losses_mode.value == "Yearly average":
             loss = 1.0 - stats.yearly_usable_fraction
             info_box.object = (
                 f"Statistics computed with **{loss:.0%} weather losses**.<br><br>"
@@ -360,7 +364,7 @@ def make_instrument_tab(app_state: AppState):
             )
             return
 
-        if weather_mode.value == "Monthly average":
+        if weather_losses_mode.value == "Monthly average":
             if stats.monthly_usable_fraction is None:
                 info_box.object = (
                     "No information available. "
@@ -389,7 +393,7 @@ def make_instrument_tab(app_state: AppState):
             table_box.append(pn.pane.Markdown(table_md))
 
     instrument_select.param.watch(update_weather_info, "value")
-    weather_mode.param.watch(update_weather_info, "value")
+    weather_losses_mode.param.watch(update_weather_info, "value")
 
     # Initial population
     update_instrument_info()
@@ -404,7 +408,7 @@ def make_instrument_tab(app_state: AppState):
         instrument_info,
         pn.Spacer(height=10), divider_h, pn.Spacer(height=10),
         weather_title,
-        weather_mode,
+        weather_losses_mode,
         info_box,
         table_box,
         sizing_mode="stretch_width",

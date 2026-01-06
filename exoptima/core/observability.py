@@ -1,7 +1,7 @@
 # observability computation tools
 
 import numpy as np
-from typing import Iterable, List
+from typing import Iterable
 from datetime import datetime, timedelta
 
 import astropy.units as u

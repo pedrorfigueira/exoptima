@@ -51,4 +51,5 @@ def main():
         port=args.port,
         show=not args.no_show,
         autoreload=False,
+        title="EXOPTIMA",
     )

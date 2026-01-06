@@ -1,4 +1,4 @@
-# Display tabs
+# Display section and tabs definitions
 
 from datetime import datetime, timedelta
 
@@ -405,6 +405,9 @@ def make_monthly_observability_tab(app_state: AppState):
                 for n in observable_nights
             ])
 
+            mean_hours = obs_hours.mean()
+            total_hours = obs_hours.sum()
+
             dates = [n.date for n in observable_nights]
 
             idx_min = int(np.argmin(obs_hours))
@@ -416,10 +419,35 @@ def make_monthly_observability_tab(app_state: AppState):
             min_date = dates[idx_min].isoformat()
             max_date = dates[idx_max].isoformat()
 
+            # Weather-loss statistics: Yearly average
+
+            weather_line = ""
+
+            inst = app_state.instrument
+            weather_losses_mode = getattr(app_state, "weather_losses_mode", None)
+
+            if (
+                    weather_losses_mode == "Yearly average"
+                    and inst is not None
+                    and inst.weather_statistics is not None
+            ):
+                p = inst.weather_statistics.yearly_usable_fraction
+
+                effective_nights = n_obs * p
+                effective_hours = obs_hours.sum() * p
+
+                weather_line = f"""
+                
+        - **Considering yearly-averaged weather losses:**  
+        **{effective_nights:.1f} effective nights**, **{effective_hours:.1f} h total observable time**
+        """
+
             return f"""
         ### Summary for Monthly Observability
         
-        - **Observable nights:** **{n_obs} / {n_total}**
+        - **Observable nights:** **{n_obs} / {n_total}**  
+          **Mean observable time per night:** **{mean_hours:.2f} h**  
+          **Total observable time:** **{total_hours:.2f} h**  
           ({first_date} → {last_date})
         
         - **Maximum observable time:**  
@@ -427,6 +455,7 @@ def make_monthly_observability_tab(app_state: AppState):
         
         - **Minimum observable time:**  
           **{min_hours:.2f} h** on **{min_date}**
+        {weather_line}
         """
 
         stats_md.object = _make_monthly_stats_table(multi)

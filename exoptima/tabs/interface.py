@@ -66,6 +66,30 @@ def make_header(app_state: AppState):
         disabled=True,
     )
 
+    # ----------------------------------
+    # Observability computing status bar
+    # ----------------------------------
+
+    status_md = pn.pane.Markdown(
+        "",
+        styles={
+            "color": "#1565c0",
+            "font-weight": "bold",
+            "font-size": "11px",
+            "margin-top": "6px",
+        },
+        width=BUTTON_WIDTH,
+        height=BUTTON_HEIGHT,
+    )
+
+    def _update_status(*_):
+        if app_state.is_computing_observability:
+            status_md.object = "🔄 Computing observability…"
+        else:
+            status_md.object = ""
+
+    app_state.param.watch(_update_status, ["is_computing_observability"])
+
     # ---------------------------------
     # Display Obs. params
     # ---------------------------------
@@ -80,10 +104,10 @@ def make_header(app_state: AppState):
         ref_time_str = app_state.reference_time.iso[:16] + " UTC"
 
         return f"""
-    | Target | RA (α) | Dec (δ) | Observatory | Airmass (max value, min dur.) | Moon (sep, Min FLI) | Night def. | Reference time |
-    |:------:|:------:|:-------:|:-----------:|:-----------------------------:|:-------------------:|:----------:|:-------------:|
-    | **{star.name}** | {star.ra} | {star.dec} | {inst.observatory.name} | < {c.max_airmass} for {c.min_duration} | {c.min_moon_separation}° if > {c.ignore_moon_if_fli_above} | {app_state.night_definition} | {ref_time_str} |
-    """
+        | Target | RA (α) | Dec (δ) | Observatory | Weather losses | Airmass (max value, min dur.) | Moon (sep, Min FLI) | Night def. | Reference time |
+        |:------:|:------:|:-------:|:-----------:|:--------------:|:-----------------------------:|:-------------------:|:----------:|:--------------:|
+        | **{star.name}** | {star.ra} | {star.dec} | {inst.observatory.name} | {app_state.weather_losses_mode} | < {c.max_airmass} for {c.min_duration} | {c.min_moon_separation}° if > {c.ignore_moon_if_fli_above} | {app_state.night_definition} | {ref_time_str} |
+        """
 
     context_md = pn.pane.Markdown(
         "",
@@ -122,7 +146,7 @@ def make_header(app_state: AppState):
             pn.Spacer(height=10),
             pn.Row(compute_obs_button, compute_prec_button),
             pn.Spacer(height=8),
-            scope_select,
+            pn.Row(scope_select, status_md),
         ),
         pn.Spacer(width=30),
         pn.Column(

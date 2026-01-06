@@ -1,3 +1,5 @@
+# General state variables and dataclasses used to store it
+
 import param
 from dataclasses import dataclass
 from typing import Sequence
@@ -89,6 +91,23 @@ class AppState(param.Parameterized):
         doc="Scope of observability computation",
     )
 
+    weather_losses_mode = param.ObjectSelector(
+        default="None",
+        objects=[
+            "None",
+            "Yearly average",
+            "Monthly average",
+        ],
+        doc="Weather losses model to apply",
+    )
+
+    # ---------------------------------
+    # Progress tracking in computation
+    # ---------------------------------
+    is_computing_observability = param.Boolean(
+        default=False,
+        doc="True while observability computation is running",
+    )
 
     # ---------------------------------
     # UI validity / readiness flags

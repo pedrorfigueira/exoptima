@@ -73,14 +73,18 @@ def _on_compute_obs(event=None):
     # Clear cached nights on compute, allowing parameter change
     app_state.night_cache.clear()
 
-    recompute_observability(app_state)
+    app_state.is_computing_observability = True
 
-    if app_state.observability_scope in ("Month", "Year"):
-        recompute_monthly_observability(app_state)
+    try:
+        recompute_observability(app_state)
 
-    if app_state.observability_scope == "Year":
-        recompute_yearly_observability(app_state)
+        if app_state.observability_scope in ("Month", "Year"):
+            recompute_monthly_observability(app_state)
 
+        if app_state.observability_scope == "Year":
+            recompute_yearly_observability(app_state)
+    finally:
+        app_state.is_computing_observability = False
 
 app_state.on_compute_observability = _on_compute_obs
 
