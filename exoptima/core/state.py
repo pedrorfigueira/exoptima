@@ -75,11 +75,18 @@ class AppState(param.Parameterized):
         default=None,
     )
 
-    multi_night_observability = param.ClassSelector(
+    monthly_observability = param.ClassSelector(
         class_=MultiNightObservability,
         allow_None=True,
         default=None,
-        doc="Observability results for multiple nights",
+        doc="Observability results for monthly scope",
+    )
+
+    yearly_observability = param.ClassSelector(
+        class_=MultiNightObservability,
+        allow_None=True,
+        default=None,
+        doc="Observability results for yearly scope",
     )
 
     # ---------------------------------

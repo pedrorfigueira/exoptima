@@ -300,7 +300,6 @@ def recompute_multi_night_observability_driver(
         ref_times=ref_times,
     )
 
-    app_state.multi_night_observability = result
     return result
 
 
@@ -317,25 +316,48 @@ def recompute_monthly_observability(
         )
     ]
 
-    return recompute_multi_night_observability_driver(
+    result = recompute_multi_night_observability_driver(
         app_state=app_state,
         ref_times=ref_times,
     )
+
+    app_state.monthly_observability = result
+    return result
+
 
 
 def recompute_yearly_observability(
     app_state: AppState,
 ) -> MultiNightObservability | None:
 
+    def _yearly_reference_times(
+            *,
+            ref_time: Time,
+            step_days: int,
+            span_days: int = 365,
+    ) -> list[Time]:
+
+        ref_date = ref_time.to_datetime().date()
+
+        half = span_days // 2
+        days = range(-half, half + 1, step_days)
+
+        ref_times = [
+            Time(datetime(d.year, d.month, d.day, 12, 0, 0), scale="utc")
+            for d in (ref_date + timedelta(days=i) for i in days)
+        ]
+
+        return ref_times
+
     ref_times = _yearly_reference_times(
         ref_time=app_state.reference_time,
         step_days=YEAR_OBS_NIGHTSTEP,
     )
 
-    return recompute_multi_night_observability_driver(
+    result = recompute_multi_night_observability_driver(
         app_state=app_state,
         ref_times=ref_times,
     )
 
-
-
+    app_state.yearly_observability = result
+    return result

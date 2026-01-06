@@ -1,6 +1,7 @@
 # Display section and tabs definitions
 
-from datetime import datetime, timedelta
+from collections import defaultdict
+import calendar
 
 import numpy as np
 
@@ -17,8 +18,6 @@ from astropy.coordinates import SkyCoord
 from exoptima.core.state import AppState, ObservabilityResult, MultiNightObservability
 from exoptima.config.layout import DISPLAY_MAIN_FRACTION, MONTH_XLABEL_STEP
 from exoptima.tabs.export import make_save_button
-
-from exoptima.core.observability import compute_single_night_observability
 
 # Custom divider
 
@@ -268,25 +267,25 @@ def make_monthly_observability_tab(app_state: AppState):
         return obs.night_duration.to_value(u.hour)
 
     def update_monthly_observability(*_):
-        multi = app_state.multi_night_observability
-        if multi is None or not multi.nights:
+        monthly = app_state.monthly_observability
+        if monthly is None or not monthly.nights:
             return
 
         ref_date = app_state.reference_time.to_datetime().date()
 
         ref_index = next(
             (
-                i for i, n in enumerate(multi.nights)
+                i for i, n in enumerate(monthly.nights)
                 if n.date == ref_date
             ),
             None,
         )
 
-        max_night = max(night_duration_hours(n.result) for n in multi.nights)
+        max_night = max(night_duration_hours(n.result) for n in monthly.nights)
 
         fig, ax = plt.subplots(figsize=(9, 5), tight_layout=True)
 
-        for x, night in enumerate(multi.nights):
+        for x, night in enumerate(monthly.nights):
             obs = night.result
 
             # Time grid relative to night start
@@ -334,12 +333,12 @@ def make_monthly_observability_tab(app_state: AppState):
         ax.set_ylim(0, max_night)
 
         # X-axis: nights and their labeling
-        x_positions = np.arange(len(multi.nights))
+        x_positions = np.arange(len(monthly.nights))
         label_positions = x_positions[::MONTH_XLABEL_STEP]
 
         ax.set_xticks(label_positions)
         ax.set_xticklabels(
-            [multi.nights[i].date.isoformat() for i in label_positions],
+            [monthly.nights[i].date.isoformat() for i in label_positions],
             rotation=45,
             ha="right",
             fontsize=8,
@@ -458,11 +457,254 @@ def make_monthly_observability_tab(app_state: AppState):
         {weather_line}
         """
 
-        stats_md.object = _make_monthly_stats_table(multi)
+        stats_md.object = _make_monthly_stats_table(monthly)
 
-    app_state.param.watch(update_monthly_observability, ["multi_night_observability"])
+    app_state.param.watch(update_monthly_observability, ["monthly_observability"])
 
     return make_display_tab(plot_pane, stats_md, "NightObs_plot.pdf", "NightObs_summary.txt")
+
+
+def make_yearly_observability_tab(app_state: AppState):
+
+    plot_pane = pn.pane.Matplotlib(sizing_mode="stretch_both")
+    stats_md = pn.pane.Markdown("### Yearly summary\nNo data yet.")
+
+    def hours_since_night_start(times: Time, night_start: Time) -> np.ndarray:
+        return (times - night_start).to_value(u.hour)
+
+    def night_duration_hours(obs: ObservabilityResult) -> float:
+        return obs.night_duration.to_value(u.hour)
+
+    def update_yearly_observability(*_):
+        yearly = app_state.yearly_observability
+        if yearly is None or not yearly.nights:
+            return
+
+        ref_date = app_state.reference_time.to_datetime().date()
+
+        ref_index = next(
+            (i for i, n in enumerate(yearly.nights) if n.date == ref_date),
+            None,
+        )
+
+        max_night = max(night_duration_hours(n.result) for n in yearly.nights)
+
+        fig, ax = plt.subplots(figsize=(9, 5), tight_layout=True)
+
+        for x, night in enumerate(yearly.nights):
+            obs = night.result
+            y = hours_since_night_start(obs.time_grid, obs.night_start)
+            night_len = night_duration_hours(obs)
+
+            # Night shading
+            ax.vlines(
+                x,
+                0,
+                night_len,
+                color="lightgrey",
+                linewidth=10,
+                alpha=0.4,
+                zorder=1,
+            )
+
+            # Observable segments
+            for j in range(len(y) - 1):
+                if not obs.mask[j]:
+                    continue
+
+                y0 = y[j]
+                y1 = y[j + 1]
+
+                if y1 <= 0 or y0 >= night_len:
+                    continue
+
+                y0c = max(y0, 0.0)
+                y1c = min(y1, night_len)
+
+                ax.vlines(
+                    x,
+                    y0c,
+                    y1c,
+                    color="#2e7d32",
+                    linewidth=6,
+                    zorder=3,
+                )
+
+        ax.set_xlim(-0.5, len(yearly.nights) - 0.5)
+        ax.set_ylim(0, max_night)
+
+        # X axis labeling (sparse, yearly scale)
+        x_positions = np.arange(len(yearly.nights))
+        step = max(1, len(x_positions) // 12)  # ~monthly labels
+        label_positions = x_positions[::step]
+
+
+        ax.set_xticks(label_positions)
+        ax.set_xticklabels(
+            [yearly.nights[i].date.isoformat() for i in label_positions],
+            rotation=45,
+            ha="right",
+            fontsize=8,
+        )
+
+        # --------------------------------------------------
+        # Top axis: month boundaries and labels
+        # --------------------------------------------------
+        from collections import defaultdict
+        import calendar
+
+        # Map (year, month) -> list of x indices
+        month_to_indices = defaultdict(list)
+        for i, n in enumerate(yearly.nights):
+            key = (n.date.year, n.date.month)
+            month_to_indices[key].append(i)
+
+        # Create twin axis on top
+        ax_top = ax.twiny()
+        ax_top.set_xlim(ax.get_xlim())
+
+        month_centers = []
+        month_labels = []
+        month_boundaries = []
+
+        for (year, month), indices in month_to_indices.items():
+            start = min(indices)
+            end = max(indices)
+
+            # boundaries at start and end of month block
+            month_boundaries.append(start - 0.5)
+            month_boundaries.append(end + 0.5)
+
+            # center position for label
+            center = 0.5 * (start + end)
+            month_centers.append(center)
+
+            label = calendar.month_abbr[month]
+            month_labels.append(label)
+
+        # Draw vertical boundary lines
+        for xb in sorted(set(month_boundaries)):
+            ax.axvline(x=xb, color="lightgrey", lw=0.8, ls=":", zorder=0)
+
+        # Set month labels on top axis
+        ax_top.set_xticks(month_centers)
+        ax_top.set_xticklabels(month_labels, fontsize=9)
+        ax_top.tick_params(axis="x", length=0)
+
+        ax_top.set_xlabel("Month", fontsize=10, labelpad=6)
+
+        # "Tonight" label
+        if ref_index is not None:
+            ax.text(
+                ref_index,
+                0.5 * max_night,
+                "Tonight",
+                rotation=90,
+                ha="center",
+                va="center",
+                fontsize=9,
+                fontweight="bold",
+                color="#1565c0",
+                alpha=0.9,
+                zorder=5,
+                bbox=dict(
+                    boxstyle="round,pad=0.2",
+                    facecolor="white",
+                    edgecolor="#1565c0",
+                    alpha=0.8,
+                ),
+            )
+
+        ax.set_ylabel("Hours since night start", fontsize=9)
+        ax.set_xlabel("Night", fontsize=9)
+
+        plot_pane.object = fig
+        plt.close(fig)
+
+        # ----------------------------
+        # Statistics
+        # ----------------------------
+
+        def _make_yearly_stats_table(multi: MultiNightObservability) -> str:
+
+            nights = multi.nights
+            observable_nights = [n for n in nights if n.result.observable_time > 0 * u.hour]
+
+            n_obs = len(observable_nights)
+            n_total = len(nights)
+            frac = n_obs / float(n_total) if n_total > 0 else 0.0
+
+            first_date = nights[0].date.isoformat()
+            last_date = nights[-1].date.isoformat()
+
+            if n_obs == 0:
+                return f"""
+### Summary for Yearly Observability
+
+- Observable nights: **0 / {n_total}**
+- The target is not observable on any night in this period.
+"""
+
+            obs_hours = np.array([
+                n.result.observable_time.to_value(u.hour)
+                for n in observable_nights
+            ])
+
+            total_hours = obs_hours.sum()
+            mean_hours = obs_hours.mean()
+
+            idx_min = int(np.argmin(obs_hours))
+            idx_max = int(np.argmax(obs_hours))
+
+            min_hours = obs_hours[idx_min]
+            max_hours = obs_hours[idx_max]
+
+            min_date = observable_nights[idx_min].date.isoformat()
+            max_date = observable_nights[idx_max].date.isoformat()
+
+            # Weather-loss line
+            weather_line = ""
+
+            inst = app_state.instrument
+            weather_mode = app_state.weather_losses_mode
+
+            if (
+                weather_mode == "Yearly average"
+                and inst is not None
+                and inst.weather_statistics is not None
+            ):
+                p = inst.weather_statistics.yearly_usable_fraction
+                effective_nights = n_obs * p
+                effective_hours = total_hours * p
+
+                weather_line = f"""
+
+- **Considering yearly-averaged weather losses:**  
+  **{effective_nights:.1f} effective nights**, **{effective_hours:.1f} h total observable time**
+"""
+
+            return f"""
+### Summary for Yearly Observability
+
+- **Observable nights:** **{n_obs} / {n_total}**  (**{frac:.1%}**)  
+  **Total observable time:** **{total_hours:.2f} h**  
+  **Mean observable time per night:** **{mean_hours:.2f} h**  
+  ({first_date} → {last_date})
+
+- **Maximum observable time:**  
+  **{max_hours:.2f} h** on **{max_date}**
+
+- **Minimum observable time:**  
+  **{min_hours:.2f} h** on **{min_date}**
+{weather_line}
+"""
+
+        stats_md.object = _make_yearly_stats_table(yearly)
+
+    app_state.param.watch(update_yearly_observability, ["yearly_observability"])
+
+    return make_display_tab(plot_pane, stats_md, "YearObs_plot.pdf", "YearObs_summary.txt")
+
 
 #####
 

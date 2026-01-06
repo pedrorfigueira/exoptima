@@ -8,9 +8,9 @@ from exoptima.core.state import AppState
 from exoptima.config.layout import BUTTON_WIDTH, BUTTON_HEIGHT
 
 from exoptima.tabs.controls import (
-    make_star_tab, make_instrument_tab, make_observing_conditions_tab, make_time_tab, make_planet_rv_tab)
+    make_star_tab, make_instrument_tab, make_observing_conditions_tab, make_planet_rv_tab)
 from exoptima.tabs.display import (
-    make_daily_observability_tab, make_monthly_observability_tab, make_output_dummy_tab)
+    make_daily_observability_tab, make_monthly_observability_tab, make_yearly_observability_tab, make_output_dummy_tab)
 
 # ------------------------------------------------------------------
 # Header
@@ -181,7 +181,7 @@ def make_output_tabs(app_state: AppState):
     return pn.Tabs(
         ("Daily Observability", make_daily_observability_tab(app_state)),
         ("Monthly Observability", make_monthly_observability_tab(app_state)),
-        ("Yearly Obs.", make_output_dummy_tab("Yearly observations")),
+        ("Yearly Observability", make_yearly_observability_tab(app_state)),
         ("RV precision", make_output_dummy_tab("RV precision")),
         sizing_mode="stretch_both",
     )
