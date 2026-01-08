@@ -69,6 +69,12 @@ class AppState(param.Parameterized):
     instrument = param.ClassSelector(class_=Instrument, allow_None=True)
     conditions = param.ClassSelector(class_=ObservingConditions, allow_None=False)
 
+    exposure_time = param.Number(
+        default=60.0,
+        bounds=(1, None),
+        doc="Exposure time in seconds for RV precision computation",
+    )
+
     observability = param.ClassSelector(
         class_=ObservabilityResult,
         allow_None=True,
@@ -87,6 +93,11 @@ class AppState(param.Parameterized):
         allow_None=True,
         default=None,
         doc="Observability results for yearly scope",
+    )
+
+    precision_result = param.Dict(
+        default=None,
+        doc="Result object of RV precision computation",
     )
 
     # ---------------------------------
@@ -114,6 +125,11 @@ class AppState(param.Parameterized):
     is_computing_observability = param.Boolean(
         default=False,
         doc="True while observability computation is running",
+    )
+
+    is_computing_precision = param.Boolean(
+        default=False,
+        doc="True while precision computation is running",
     )
 
     # ---------------------------------

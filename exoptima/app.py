@@ -11,6 +11,8 @@ from exoptima.tabs.interface import (
 from exoptima.core.observability import (
     recompute_observability, recompute_monthly_observability, recompute_yearly_observability)
 
+from exoptima.core.precision import recompute_precision
+
 from exoptima.core.state import AppState
 app_state = AppState()
 
@@ -87,6 +89,8 @@ def _on_compute_obs(event=None):
         app_state.is_computing_observability = False
 
 app_state.on_compute_observability = _on_compute_obs
+
+app_state.on_compute_precision = lambda: recompute_precision(app_state)
 
 # ------------------------------------------------------------------
 # Panel entry point

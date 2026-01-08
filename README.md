@@ -10,6 +10,89 @@ The user interface is opened via a command-line tool that launches a Panel serve
 
 **TBD**
 
+### RV Precision Estimation Model
+
+EXOPTIMA estimates radial-velocity (RV) precision using a physically motivated scaling model anchored to reference values provided for the **ESPRESSO** spectrograph. For instruments without their own RV calibration model, results are scaled from ESPRESSO using telescope diameter, spectral resolution, exposure time, and target magnitude.
+
+#### Reference Model
+
+For each supported spectral type (G2, K2, K7, M2), ESPRESSO provides:
+
+* Reference signal-to-noise ratio: `SNR_ref`
+* Reference RV precision: `σ_RV,ref`
+* Reference exposure time: `t_ref`
+* Reference magnitude: `m_ref`
+
+These values are defined for a standard configuration (e.g. 60 s exposure, V = 10).
+
+#### Signal-to-Noise Scaling
+
+The signal-to-noise ratio is assumed to scale as:
+
+[
+\mathrm{SNR} \propto D \cdot \sqrt{t} \cdot 10^{-0.2 (m - m_\mathrm{ref})}
+]
+
+where:
+
+* ( D ) is the telescope diameter
+* ( t ) is the exposure time
+* ( m ) is the target magnitude
+
+In practice:
+
+[
+\mathrm{SNR} =
+\mathrm{SNR}*{\mathrm{ref}}
+\times \frac{D}{D*{\mathrm{ref}}}
+\times \sqrt{\frac{t}{t_{\mathrm{ref}}}}
+\times 10^{-0.2 (m - m_{\mathrm{ref}})}
+]
+
+#### RV Precision Scaling
+
+Radial-velocity precision is assumed to scale as:
+
+[
+\sigma_\mathrm{RV} \propto \frac{1}{\mathrm{SNR}} \cdot R^{-1.5}
+]
+
+where ( R ) is the spectral resolution.
+
+Thus:
+
+[
+\sigma_\mathrm{RV} =
+\sigma_{\mathrm{RV,ref}}
+\times \frac{\mathrm{SNR}*{\mathrm{ref}}}{\mathrm{SNR}}
+\times \left(\frac{R*{\mathrm{ref}}}{R}\right)^{1.5}
+]
+
+#### Instrument Handling
+
+* If an instrument provides its own RV estimation model, it is used directly.
+* Otherwise, ESPRESSO is used as the reference instrument and results are scaled using:
+
+  * Telescope diameter ratio
+  * Spectral resolution ratio
+  * Exposure time
+  * Target magnitude
+
+#### Scope and Limitations
+
+This model:
+
+* Assumes photon-noise–dominated performance
+* Does not yet include:
+
+  * Throughput differences
+  * Wavelength band dependence
+  * Seeing, airmass, or sky background effects
+  * Stellar rotation or activity
+
+The goal is to provide **order-of-magnitude realistic estimates** suitable for feasibility assessment and instrument comparison, not detailed exposure-time calculator accuracy.
+
+
 ## 📦 Installation
 
 ### 1. Install Python ≥ 3.10
@@ -105,7 +188,10 @@ exoptima/
 ```
 
 ## TODO
-- [ ] Check behavior of time constr on plot
+- [ ] test precision estimation with ETCs
+- [ ] test throughput / wav.dep
+- [ ] include average / user-defined seeing and airmass penalty 
+- [ ] implement orbit sampling and transit scheduling
 - [ ] Implement monthly weather-loss statistics
 
 ## 📄 License

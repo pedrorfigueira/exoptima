@@ -19,7 +19,6 @@ from exoptima.config.layout import FORM_WIDGET_WIDTH, BUTTON_WIDTH, BUTTON_HEIGH
 from exoptima.config.instruments import INSTRUMENTS
 
 from exoptima.core.state import AppState, Star
-app_state = AppState()
 
 # ----- helper functions -----
 
@@ -738,6 +737,17 @@ def make_planet_rv_tab(app_state: AppState):
     # Planet & RV precision tabs
     # ----------------------------
 
+    exptime_widget = pn.widgets.FloatInput(
+                name="Exposure time [s]",
+                width=FORM_WIDGET_WIDTH // 2,
+                disabled=True,
+    )
+
+    def _on_exptime_change(event):
+        app_state.exposure_time = event.new
+
+    exptime_widget.param.watch(_on_exptime_change, "value")
+
     def make_planet_controls():
         return pn.Column(
             pn.pane.Markdown("### Planet parameters"),
@@ -764,22 +774,7 @@ def make_planet_rv_tab(app_state: AppState):
                 "### RV precision (not implemented yet)\n"
                 "<span style='color:#b00020; font-style:italic;'>Disabled</span>",
             ),
-            pn.Row(
-                pn.widgets.FloatInput(
-                    name="Exposure time [s]",
-                    width=FORM_WIDGET_WIDTH // 2,
-                    disabled=True),
-                pn.widgets.FloatInput(
-                    name="Target S/N",
-                    width=FORM_WIDGET_WIDTH // 2,
-                    disabled=True),
-                pn.widgets.Select(
-                    name="RV model",
-                    options=["Photon-limited", "Instrument-limited"],
-                    width=FORM_WIDGET_WIDTH // 2,
-                    disabled=True,
-                ),
-            ),
+            exptime_widget,
             sizing_mode="stretch_width",
         )
 

@@ -16,18 +16,6 @@ import astropy.units as u
 # ------------------------------------------------------------------
 
 @dataclass(frozen=True)
-class WeatherStatistics:
-    """
-    Weather loss statistics for an observatory/instrument.
-    Fractions refer to *usable time* (not lost time).
-    """
-
-    description: str                            # explanatory text
-    reference_url: str                          # authoritative webpage
-    yearly_usable_fraction: float
-    monthly_usable_fraction: Dict[str, float] | None = None  # keys: "Jan", "Feb", ...
-
-@dataclass(frozen=True)
 class Observatory:
     name: str
     latitude_deg: float
@@ -51,14 +39,43 @@ class Observatory:
         )
 
 @dataclass(frozen=True)
+class WeatherStatistics:
+    """
+    Weather loss statistics for an observatory/instrument.
+    Fractions refer to *usable time* (not lost time).
+    """
+
+    description: str                            # explanatory text
+    reference_url: str                          # authoritative webpage
+    yearly_usable_fraction: float
+    monthly_usable_fraction: Dict[str, float] | None = None  # keys: "Jan", "Feb", ...
+
+@dataclass(frozen=True)
+class RVEstimation:
+    """
+    Reference RV precision and SNR values for a spectrograph.
+
+    All values are defined at:
+        - reference_exptime (seconds)
+        - reference_mag (V magnitude)
+
+    Dictionaries are keyed by spectral type: "G2", "K2", "K7", "M2"
+    """
+
+    ref_exptime: float   # seconds
+    ref_mag: float       # V magnitude
+
+    ref_snr: Dict[str, Optional[float]]
+    ref_rv_precision: Dict[str, Optional[float]]  # m/s
+
+@dataclass(frozen=True)
 class Instrument:
     name: str
     observatory: Observatory
     resolution: int                     # lambda / delta_lambda
     telescope_diameter: float           # primary mirror diameter
-    rv_precision_mps: Optional[float] = None
     weather_statistics: Optional[WeatherStatistics] = None
-
+    rv_estimation: Optional[RVEstimation] = None
 
 # ------------------------------------------------------------------
 # Observatories
@@ -92,6 +109,13 @@ CALAR_ALTO = Observatory(
     elevation_m=2168,
 )
 
+KECK_OBSERVATORY = Observatory(
+    name="W. M. Keck Observatory",
+    latitude_deg=19.8261,
+    longitude_deg=-155.4749,
+    elevation_m=4160,
+)
+
 # ------------------------------------------------------------------
 # Instruments
 # ------------------------------------------------------------------
@@ -103,7 +127,6 @@ INSTRUMENTS: Dict[str, Instrument] = {
         observatory=CALAR_ALTO,
         resolution=60000,
         telescope_diameter=1.23,
-        rv_precision_mps=None,
         weather_statistics=WeatherStatistics(
             yearly_usable_fraction=0.70,
             description=(
@@ -112,6 +135,7 @@ INSTRUMENTS: Dict[str, Instrument] = {
             ),
             reference_url="https://arxiv.org/abs/0709.0813",
         ),
+        rv_estimation=None,
     ),
 
     "CORALIE": Instrument(
@@ -119,7 +143,6 @@ INSTRUMENTS: Dict[str, Instrument] = {
         observatory=LA_SILLA,
         resolution=60000,
         telescope_diameter=1.2,
-        rv_precision_mps=3.0,
         weather_statistics=WeatherStatistics(
             yearly_usable_fraction=0.80,
             description=(
@@ -128,6 +151,7 @@ INSTRUMENTS: Dict[str, Instrument] = {
             ),
             reference_url="https://www.eso.org/sci/facilities/lasilla/astclim/weather.html",
         ),
+        rv_estimation=None,
     ),
 
     "HARPS": Instrument(
@@ -135,7 +159,6 @@ INSTRUMENTS: Dict[str, Instrument] = {
         observatory=LA_SILLA,
         resolution=115000,
         telescope_diameter=3.6,
-        rv_precision_mps=1.0,
         weather_statistics=WeatherStatistics(
             yearly_usable_fraction=0.80,
             description=(
@@ -144,6 +167,7 @@ INSTRUMENTS: Dict[str, Instrument] = {
             ),
             reference_url="https://www.eso.org/sci/facilities/lasilla/astclim/weather.html",
         ),
+        rv_estimation=None,
     ),
 
     "HARPS-N": Instrument(
@@ -151,7 +175,6 @@ INSTRUMENTS: Dict[str, Instrument] = {
         observatory=LA_PALMA,
         resolution=115000,
         telescope_diameter=3.58,
-        rv_precision_mps=1.0,
         weather_statistics=WeatherStatistics(
             yearly_usable_fraction=0.70,
             description=(
@@ -161,6 +184,7 @@ INSTRUMENTS: Dict[str, Instrument] = {
             ),
             reference_url="https://academic.oup.com/mnras/article/401/3/1904/1096431",
         ),
+        rv_estimation=None,
     ),
 
     "ESPRESSO": Instrument(
@@ -168,7 +192,6 @@ INSTRUMENTS: Dict[str, Instrument] = {
         observatory=PARANAL,
         resolution=140000,
         telescope_diameter=8.2,
-        rv_precision_mps=0.1,
         weather_statistics=WeatherStatistics(
             yearly_usable_fraction=0.90,
             description=(
@@ -177,6 +200,34 @@ INSTRUMENTS: Dict[str, Instrument] = {
             ),
             reference_url="https://www.eso.org/sci/facilities/paranal/astroclimate/Obsconditions.html",
         ),
+        rv_estimation=RVEstimation(
+            ref_exptime=60.0,
+            ref_mag=10.0,
+            ref_snr={
+                "G2": 150.0,
+                "K2": 180.0,
+                "K7": 220.0,
+                "M2": 250.0,
+            },
+            ref_rv_precision={
+                "G2": 0.10,
+                "K2": 0.08,
+                "K7": 0.06,
+                "M2": 0.05,
+            },
+        )
     ),
 
+    "KPF" : Instrument(
+        name="KPF",
+        observatory=KECK_OBSERVATORY,
+        telescope_diameter=10.0,
+        resolution=98000,
+        weather_statistics=WeatherStatistics(
+            yearly_usable_fraction=0.76,  # seems low, but that's what is published
+            description="Mauna Kea long-term weather statistics (clear fraction).",
+            reference_url="https://arxiv.org/abs/0811.2448",
+        ),
+        rv_estimation=None,
+    ),
 }

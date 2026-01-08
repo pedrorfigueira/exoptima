@@ -52,11 +52,11 @@ def make_header(app_state: AppState):
         disabled=True,
     )
 
-    def _on_click(event=None):
+    def _on_click_compobs(event=None):
         if app_state.on_compute_observability is not None:
             app_state.on_compute_observability()
 
-    compute_obs_button.on_click(_on_click)
+    compute_obs_button.on_click(_on_click_compobs)
 
     compute_prec_button = pn.widgets.Button(
         name="Compute Precision",
@@ -65,6 +65,12 @@ def make_header(app_state: AppState):
         height=BUTTON_HEIGHT,
         disabled=True,
     )
+
+    def _on_click_compprec(event=None):
+        if app_state.on_compute_precision is not None:
+            app_state.on_compute_precision()
+
+    compute_prec_button.on_click(_on_click_compprec)
 
     # ----------------------------------
     # Observability computing status bar
@@ -84,15 +90,17 @@ def make_header(app_state: AppState):
 
     def _update_status(*_):
         if app_state.is_computing_observability:
-            status_md.object = "🔄 Computing observability…"
+            status_md.object = "🔭 Computing observability…"
+        elif app_state.is_computing_precision:
+            status_md.object = "🎯 Computing precision…"
         else:
             status_md.object = ""
 
-    app_state.param.watch(_update_status, ["is_computing_observability"])
+    app_state.param.watch(_update_status, ["is_computing_observability", "is_computing_precision"])
 
-    # ---------------------------------
-    # Display Obs. params
-    # ---------------------------------
+    # ------------------------------------------
+    # Display Observability / Precision  params
+    # ------------------------------------------
     def _make_observability_context_md(app_state: AppState) -> str:
         if app_state.observability is None:
             return ""  # empty until Compute Observability is run
@@ -114,22 +122,51 @@ def make_header(app_state: AppState):
         sizing_mode="stretch_width",
     )
 
+    def _make_precision_context_md(app_state: AppState) -> str:
+        if app_state.star is None or app_state.instrument is None:
+            return ""
+
+        star = app_state.star
+        inst = app_state.instrument
+        exptime = app_state.exposure_time
+
+        exptime_str = f"{exptime:.0f} s" if exptime is not None else "—"
+
+        return f"""
+    | V mag | SpTp | Instrument | Exposure time |
+    |:-----:|:----:|:----------:|:-------------:|
+    | **{star.vmag:.2f}** | **{star.sptype}** | **{inst.name}** | **{exptime_str}** |
+    """
+
     # ---------------------------------
-    # Reactive enable/disable
+    # enable/disable compute buttons
     # ---------------------------------
     def _update_buttons(*_):
-        compute_obs_button.disabled = not app_state.star_coords_valid
-        compute_prec_button.disabled = not app_state.star_vmag_defined
+        compute_obs_button.disabled = (
+                not app_state.star_coords_valid
+                or app_state.is_computing_observability
+        )
 
-    app_state.param.watch(_update_buttons, ["star_coords_valid", "star_vmag_defined"])
-
-    def _update_context(*_):
-        context_md.object = _make_observability_context_md(app_state)
+        compute_prec_button.disabled = (
+                not app_state.star_vmag_defined
+                or app_state.is_computing_precision
+        )
 
     app_state.param.watch(
-        _update_context,
-        ["observability"],  # ← only after a computation is requested, not after parameter changes
+        _update_buttons,
+        ["star_coords_valid", "star_vmag_defined", "is_computing_observability", "is_computing_precision"],
     )
+
+    def _update_context(event):
+        print("Context update:", event.name, id(app_state))
+
+        if event.name == "observability":
+            context_md.object = _make_observability_context_md(app_state)
+
+        elif event.name == "precision_result":
+            context_md.object = _make_precision_context_md(app_state)
+
+    app_state.param.watch(_update_context, ["observability", "precision_result"])
 
     # ---------------------------------
     # Layout
