@@ -5,8 +5,8 @@ from exoptima.app import app
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        prog="opt",
-        description="Astronomical Observation Planning Tool"
+        prog="exoptima",
+        description="Exoplanet Observation and Planing Tool for Instrument and Mission Analysis"
     )
 
     parser.add_argument(
@@ -26,8 +26,8 @@ def parse_args():
     parser.add_argument(
         "--endpoint",
         type=str,
-        default="opt",
-        help="URL endpoint name (default: opt)"
+        default="exoptima",
+        help="URL endpoint name (default: exoptima)"
     )
 
     parser.add_argument(

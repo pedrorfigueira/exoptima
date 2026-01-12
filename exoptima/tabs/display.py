@@ -1,12 +1,8 @@
 # Display section and tabs definitions
 
-from collections import defaultdict
-import calendar
-
 import numpy as np
 
 import panel as pn
-pn.extension()
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -18,6 +14,9 @@ from astropy.coordinates import SkyCoord
 from exoptima.core.state import AppState, ObservabilityResult, MultiNightObservability
 from exoptima.config.layout import DISPLAY_MAIN_FRACTION, MONTH_XLABEL_STEP
 from exoptima.tabs.export import make_save_button
+
+from exoptima.core.precision import compute_rv_precision
+from exoptima.core.rv_models import compute_rv_amplitudes_two_cases, compute_detection_significance_curve
 
 # Custom divider
 
@@ -706,67 +705,239 @@ def make_yearly_observability_tab(app_state: AppState):
     return make_display_tab(plot_pane, stats_md, "YearObs_plot.pdf", "YearObs_summary.txt")
 
 
-#####
+def make_precision_tab(app_state: AppState):
 
-def make_planet_tab():
-    return pn.Column(
-        pn.widgets.FloatInput(name="Mass [MJup]"),
-        pn.widgets.FloatInput(name="Orbital period []"),
-    )
+    plot_pane = pn.pane.Matplotlib(sizing_mode="stretch_both")
+    stats_md = pn.pane.Markdown("### RV Precision\nNo data yet.")
 
-def make_rv_precision_tab():
-    rv_output = pn.Column(
-        pn.pane.Markdown(
-            "### RV precision results\n(plots / tables will go here)",
-        ),
-        sizing_mode="stretch_both",
-        styles={
-            "flex": f"0 0 {DISPLAY_MAIN_FRACTION * 100:.0f}%",
-        },
-    )
+    def update_precision_display(event=None):
+        result = app_state.precision_result
+        if result is None:
+            return
 
-    planet_controls = pn.Column(
-        pn.pane.Markdown(
-            "## Planet parameters",
-        ),
-        make_planet_tab(),
-        sizing_mode="stretch_both",
-        styles={
-            "flex": f"0 0 {(1. - DISPLAY_MAIN_FRACTION) * 100:.0f}%",
-        },
-    )
-    return pn.Column(
-        rv_output,
-        divider_h,
-        planet_controls,
-        sizing_mode="stretch_both",
-    )
+        star = app_state.star
+        inst = app_state.instrument
+        t_req = app_state.exposure_time  # seconds
+        pp = getattr(app_state, "planet_params", None)
 
+        if star is None or inst is None or t_req is None:
+            return
 
-def make_output_dummy_tab(title: str):
-    """Create a vertically split output tab with main view and statistics."""
-    main_view = pn.Column(
-        pn.pane.Markdown(f"### {title}\nMain results go here"),
-        sizing_mode="stretch_both",
-        styles={
-            "flex": f"0 0 {DISPLAY_MAIN_FRACTION * 100:.0f}%",
-        },
-    )
+        spectral_type = star.sptype
+        vmag = star.vmag
 
-    stats_view = pn.Column(
-        pn.pane.Markdown(
-            "### Statistics",
-        ),
-        pn.pane.Markdown("Statistics and summary metrics go here"),
-        sizing_mode="stretch_both",
-        styles={
-            "flex": f"0 0 {(1. - DISPLAY_MAIN_FRACTION) * 100:.0f}%",
-        },
-    )
+        # --------------------------------------------------
+        # X-axis range logic (seconds)
+        # --------------------------------------------------
 
-    return pn.Column(
-        main_view,
-        divider_h,
-        stats_view,
-        sizing_mode="stretch_both",
-    )
+        if t_req < 15 * 60:
+            t_min = 60
+            t_max = 30 * 60
+        elif t_req < 30 * 60:
+            t_min = 60
+            t_max = 60 * 60
+        else:
+            t_min = 60
+            t_max = 3.0 * t_req
+
+        times = np.linspace(t_min, t_max, 60)
+
+        snr_vals = []
+        rv_vals = []
+
+        for t in times:
+            r = compute_rv_precision(
+                instrument=inst,
+                spectral_type=spectral_type,
+                vmag=vmag,
+                exposure_time=t,
+            )
+            if r is None:
+                snr_vals.append(np.nan)
+                rv_vals.append(np.nan)
+            else:
+                snr_vals.append(r["snr"])
+                rv_vals.append(r["rv_precision"])
+
+        snr_vals = np.array(snr_vals)
+        rv_vals = np.array(rv_vals)
+
+        # Requested point
+        snr_req = result["snr"]
+        rv_req = result["rv_precision"]
+        scaled_from = result.get("scaled_from", "—")
+
+        # --------------------------------------------------
+        # RV semi-amplitudes (if planet params defined)
+        # --------------------------------------------------
+
+        K_cases = None
+        if (
+            pp is not None
+            and pp.planet_mass_mjup is not None
+            and pp.orbital_period_days is not None
+        ):
+            K_cases = compute_rv_amplitudes_two_cases(
+                planet_mass_mjup=pp.planet_mass_mjup,
+                orbital_period_days=pp.orbital_period_days,
+                stellar_mass_msun=pp.stellar_mass_msun,
+            )
+
+        # --------------------------------------------------
+        # Figure layout: 2x2 grid
+        # --------------------------------------------------
+
+        fig = plt.figure(figsize=(11, 6), tight_layout=True)
+        gs = fig.add_gridspec(2, 2, width_ratios=[2.2, 1.2])
+
+        ax_snr = fig.add_subplot(gs[0, 0])
+        ax_rv  = fig.add_subplot(gs[1, 0], sharex=ax_snr)
+        ax_sig = fig.add_subplot(gs[:, 1])
+
+        # --------------------------------------------------
+        # --- SNR plot (top-left) ---
+        # --------------------------------------------------
+
+        ax_snr.plot(times / 60.0, snr_vals, lw=2)
+        ax_snr.scatter([t_req / 60.0], [snr_req], s=80, zorder=5)
+        ax_snr.set_ylabel("S/N", fontsize=9)
+        ax_snr.grid(alpha=0.3)
+
+        ax_snr.annotate(
+            f"S/N = {snr_req:.1f}",
+            xy=(t_req / 60.0, snr_req),
+            xytext=(8, 8),
+            textcoords="offset points",
+            fontsize=8,
+            bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.9),
+        )
+
+        # --------------------------------------------------
+        # --- RV precision plot (bottom-left) ---
+        # --------------------------------------------------
+
+        ax_rv.plot(times / 60.0, rv_vals, lw=2)
+        ax_rv.scatter([t_req / 60.0], [rv_req], s=80, zorder=5)
+        ax_rv.set_ylabel("RV precision [m/s]", fontsize=9)
+        ax_rv.set_xlabel("Exposure time [min]", fontsize=9)
+        ax_rv.grid(alpha=0.3)
+
+        ax_rv.annotate(
+            f"RV = {rv_req:.2f} m/s",
+            xy=(t_req / 60.0, rv_req),
+            xytext=(8, 8),
+            textcoords="offset points",
+            fontsize=8,
+            bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.9),
+        )
+
+        # --- Horizontal K lines if available ---
+        if K_cases is not None:
+            ax_rv.axhline(
+                K_cases["optimistic"],
+                color="#1565c0",
+                ls="--",
+                lw=1.5,
+                label="K (optimistic)",
+            )
+            ax_rv.axhline(
+                K_cases["realistic"],
+                color="#6a1b9a",
+                ls=":",
+                lw=1.5,
+                label="K (realistic)",
+            )
+            ax_rv.legend(fontsize=8, loc="upper right")
+
+        # --------------------------------------------------
+        # --- Detection significance plot (right) ---
+        # --------------------------------------------------
+
+        ax_sig.set_title("Detectability", fontsize=10)
+
+        if K_cases is not None:
+
+            sig_opt = compute_detection_significance_curve(
+                exposure_times=times,
+                instrument=inst,
+                spectral_type=spectral_type,
+                vmag=vmag,
+                K_value=K_cases["optimistic"],
+            )
+
+            sig_real = compute_detection_significance_curve(
+                exposure_times=times,
+                instrument=inst,
+                spectral_type=spectral_type,
+                vmag=vmag,
+                K_value=K_cases["realistic"],
+            )
+
+            ax_sig.plot(
+                times / 60.0,
+                sig_opt,
+                color="#1565c0",
+                lw=2,
+                label="Optimistic",
+            )
+
+            ax_sig.plot(
+                times / 60.0,
+                sig_real,
+                color="#6a1b9a",
+                lw=2,
+                ls="--",
+                label="Realistic",
+            )
+
+            ax_sig.axhline(1.0, color="grey", lw=1, ls=":")
+            ax_sig.set_ylabel("Detection significance (K / σRV)", fontsize=9)
+            ax_sig.set_xlabel("Exposure time [min]", fontsize=9)
+            ax_sig.grid(alpha=0.3)
+            ax_sig.legend(fontsize=8)
+
+        else:
+            ax_sig.text(
+                0.5, 0.5,
+                "Planet mass and period\nnot defined",
+                ha="center",
+                va="center",
+                transform=ax_sig.transAxes,
+                fontsize=9,
+                color="#666",
+            )
+            ax_sig.set_axis_off()
+
+        # --------------------------------------------------
+        # Finalize
+        # --------------------------------------------------
+
+        plot_pane.object = fig
+        plt.close(fig)
+
+        # --------------------------------------------------
+        # Statistics pane
+        # --------------------------------------------------
+
+        stats_lines = [
+            f"- **S/N at {t_req/60:.1f} min:** **{snr_req:.2f}**",
+            f"- **RV precision at {t_req/60:.1f} min:** **{rv_req:.2f} m/s**",
+            f"- **Scaled from:** **{scaled_from}**",
+        ]
+
+        if K_cases is not None:
+            stats_lines.append("")
+            stats_lines.append(f"- **K (optimistic):** **{K_cases['optimistic']:.2f} m/s**")
+            stats_lines.append(f"- **K (realistic):** **{K_cases['realistic']:.2f} m/s**")
+            stats_lines.append(
+                f"- **Detection significance (optimistic):** **{K_cases['optimistic']/rv_req:.2f} σ**"
+            )
+            stats_lines.append(
+                f"- **Detection significance (realistic):** **{K_cases['realistic']/rv_req:.2f} σ**"
+            )
+
+        stats_md.object = "### RV Precision Summary\n\n" + "\n".join(stats_lines)
+
+    app_state.param.watch(update_precision_display, ["precision_result"])
+
+    return make_display_tab(plot_pane, stats_md, "RVPrecision_plot.pdf", "RVPrecision_summary.txt")

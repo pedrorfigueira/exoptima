@@ -2,7 +2,7 @@
 
 import param
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Sequence, Optional
 from datetime import date
 
 import numpy as np
@@ -23,6 +23,15 @@ class Star:
     dec: str
     vmag: float | None
     sptype: str
+
+@dataclass
+class PlanetParameters:
+    """
+    Planet and stellar parameters relevant for RV precision and detectability.
+    """
+    planet_mass_mjup: Optional[float] = None     # MJup
+    orbital_period_days: Optional[float] = None  # days
+    stellar_mass_msun: float = 1.0                # MSun (default 1)
 
 @dataclass
 class ObservingConditions:
@@ -68,6 +77,12 @@ class AppState(param.Parameterized):
     star = param.ClassSelector(class_=Star, allow_None=True)
     instrument = param.ClassSelector(class_=Instrument, allow_None=True)
     conditions = param.ClassSelector(class_=ObservingConditions, allow_None=False)
+
+    planet_params = param.ClassSelector(
+        class_=PlanetParameters,
+        allow_None=False,
+        doc="Planet and stellar parameters for RV computations",
+    )
 
     exposure_time = param.Number(
         default=60.0,
@@ -177,6 +192,8 @@ class AppState(param.Parameterized):
 
     def __init__(self, **params):
         super().__init__(**params)
+
+        self.planet_params = PlanetParameters()
 
         # Import here to avoid config ↔ state circular dependency
         from exoptima.config.computation import (

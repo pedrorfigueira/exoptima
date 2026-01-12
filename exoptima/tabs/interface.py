@@ -1,7 +1,6 @@
 
 from pathlib import Path
 import panel as pn
-pn.extension()
 
 from exoptima.core.state import AppState
 
@@ -10,7 +9,8 @@ from exoptima.config.layout import BUTTON_WIDTH, BUTTON_HEIGHT
 from exoptima.tabs.controls import (
     make_star_tab, make_instrument_tab, make_observing_conditions_tab, make_planet_rv_tab)
 from exoptima.tabs.display import (
-    make_daily_observability_tab, make_monthly_observability_tab, make_yearly_observability_tab, make_output_dummy_tab)
+    make_daily_observability_tab, make_monthly_observability_tab, make_yearly_observability_tab,
+    make_precision_tab)
 
 # ------------------------------------------------------------------
 # Header
@@ -158,8 +158,6 @@ def make_header(app_state: AppState):
     )
 
     def _update_context(event):
-        print("Context update:", event.name, id(app_state))
-
         if event.name == "observability":
             context_md.object = _make_observability_context_md(app_state)
 
@@ -213,12 +211,23 @@ def make_control_tabs(app_state: AppState):
     )
 
 
-
 def make_output_tabs(app_state: AppState):
-    return pn.Tabs(
-        ("Daily Observability", make_daily_observability_tab(app_state)),
-        ("Monthly Observability", make_monthly_observability_tab(app_state)),
-        ("Yearly Observability", make_yearly_observability_tab(app_state)),
-        ("RV precision", make_output_dummy_tab("RV precision")),
+    daily = make_daily_observability_tab(app_state)
+    monthly = make_monthly_observability_tab(app_state)
+    yearly = make_yearly_observability_tab(app_state)
+    precision = make_precision_tab(app_state)
+
+    tabs = pn.Tabs(
+        ("Daily Observability", daily),
+        ("Monthly Observability", monthly),
+        ("Yearly Observability", yearly),
+        ("RV precision", precision),
         sizing_mode="stretch_both",
     )
+
+    # Apply base class to all
+    for i in range(len(tabs)):
+        tabs[i].css_classes = ["exoptima-tab-label", "exoptima-tab-disabled"]
+        tabs[i].disabled = True
+
+    return tabs

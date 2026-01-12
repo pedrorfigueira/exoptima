@@ -3,7 +3,7 @@
 import math
 from typing import Optional, Dict
 
-from exoptima.config.instruments import Instrument, INSTRUMENTS, RVEstimation
+from exoptima.config.instruments import Instrument, INSTRUMENTS
 
 def recompute_precision(app_state):
     if app_state.star is None or app_state.instrument is None:
@@ -24,8 +24,6 @@ def recompute_precision(app_state):
 
     app_state.precision_result = result
 
-    print("Precision computed on:", id(app_state))
-    print("result:", result)
     return result
 
 def compute_rv_precision(
@@ -123,4 +121,3 @@ def compute_rv_precision(
         "rv_ref": rv_ref,
         "scaled_from": base_instrument.name,
     }
-

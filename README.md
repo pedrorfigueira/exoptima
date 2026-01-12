@@ -1,4 +1,4 @@
-# `exoptima` - **EXOTICA Observation Preparation Tool for Instrumentation and Mission Assessment** 
+# `exoptima` - **EXOTICA Observation Preparation Tool for Instrumentation and Mission Analysis** 
 
 <img src="exoptima/assets/exoptima-logo.svg" alt="EXOPTIMA logo" width="220" align="right">
 
@@ -145,7 +145,7 @@ Where:
 
  - `--port 6006` specifies the port on which the web server runs. Default: `5006`.
  - `--host 0.0.0.0` specifies the network interface to bind to; useful when accessing the interface from another machine on the same network. Default: `127.0.0.1`
- - `--no-show` prevent `opt` from opening a web browser; recommended when running on a remote machine or over SSH.
+ - `--no-show` prevent `exoptima` from opening a web browser; recommended when running on a remote machine or over SSH.
 
 When launched, the interface opens in your browser and displays a series of controls (left) and visibility and analysis tools (right). 
 
@@ -166,8 +166,9 @@ exoptima/
     ├── core/
     │   ├── __init__.py
     │   ├── state.py       
-    │   ├── observability.py       
-    │   └── precision.py   
+    │   ├── observability.py     
+    │   ├── precision.py         
+    │   └── rv_models.py   
     │
     ├── config/
     │   ├── __init__.py

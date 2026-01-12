@@ -1,7 +1,6 @@
 # Control section and tabs definitions
 
 import panel as pn
-pn.extension()
 
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -737,10 +736,12 @@ def make_planet_rv_tab(app_state: AppState):
     # Planet & RV precision tabs
     # ----------------------------
 
+    exptime_title =  pn.pane.HTML("<div style='font-size: 1.3em; font-weight: normal;'>Exposure Time</div>")
+
     exptime_widget = pn.widgets.FloatInput(
                 name="Exposure time [s]",
+                value=60.0,
                 width=FORM_WIDGET_WIDTH // 2,
-                disabled=True,
     )
 
     def _on_exptime_change(event):
@@ -748,35 +749,32 @@ def make_planet_rv_tab(app_state: AppState):
 
     exptime_widget.param.watch(_on_exptime_change, "value")
 
-    def make_planet_controls():
-        return pn.Column(
-            pn.pane.Markdown("### Planet parameters"),
-            pn.Row(
-                pn.widgets.FloatInput(
-                    name="Mass [MJup]",
-                    width=FORM_WIDGET_WIDTH // 2,
-                    disabled=True),
-                pn.widgets.FloatInput(
-                    name="Orbital period [days]",
-                    width=FORM_WIDGET_WIDTH // 2,
-                    disabled=True),
-                pn.widgets.FloatInput(
-                    name="Stellar Mass [MSun]",
-                    width=FORM_WIDGET_WIDTH // 2,
-                    disabled=True),
-            ),
-            sizing_mode="stretch_width",
-        )
+    planet_title =  pn.pane.HTML("<div style='font-size: 1.3em; font-weight: normal;'>Planet Parameters</div>")
 
-    def make_rv_precision_controls():
-        return pn.Column(
-            pn.pane.Markdown(
-                "### RV precision (not implemented yet)\n"
-                "<span style='color:#b00020; font-style:italic;'>Disabled</span>",
-            ),
-            exptime_widget,
-            sizing_mode="stretch_width",
-        )
+    planet_mass = pn.widgets.FloatInput(
+                name="Mass [MJup]",
+                value= None,
+                width=FORM_WIDGET_WIDTH // 2,
+    )
+    orbital_period = pn.widgets.FloatInput(
+                name="Orbital period [days]",
+                value= None,
+                width=FORM_WIDGET_WIDTH // 2,
+    )
+
+    stellar_mass = pn.widgets.FloatInput(
+                name="Stellar Mass [MSun]",
+                value=1.0,
+                width=FORM_WIDGET_WIDTH // 2,
+                )
+
+    def _update_planet_params(*_):
+        app_state.planet_params.planet_mass_mjup = planet_mass.value
+        app_state.planet_params.orbital_period_days = orbital_period.value
+        app_state.planet_params.stellar_mass_msun = stellar_mass.value
+
+    for w in (planet_mass, orbital_period, stellar_mass):
+        w.param.watch(_update_planet_params, "value")
 
     # --------------------------------------------------
     # Instantaneous conditions (disabled)
@@ -807,24 +805,19 @@ def make_planet_rv_tab(app_state: AppState):
         width=FORM_WIDGET_WIDTH // 2,
     )
 
-    sky_condition = pn.widgets.Select(
-        name="Sky condition",
-        options=["Clear", "Thin clouds", "Cloudy"],
-        value="Clear",
-        width=FORM_WIDGET_WIDTH // 2,
-    )
-
-    for widget in (seeing, airmass_inst, sky_condition):
+    for widget in (seeing, airmass_inst):
         widget.disabled = True
 
     return pn.Column(
-        make_planet_controls(),
+        exptime_title,
+        exptime_widget,
         pn.Spacer(height=10),
-        make_rv_precision_controls(),
+        planet_title,
+        pn.Row(planet_mass, orbital_period, stellar_mass),
 
         pn.Spacer(height=10), divider_h, pn.Spacer(height=10),
 
         title_precision,
-        pn.Row(seeing, airmass_inst, sky_condition),
+        pn.Row(seeing, airmass_inst),
         sizing_mode="stretch_width",
     )
