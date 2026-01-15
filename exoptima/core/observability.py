@@ -12,7 +12,6 @@ from astroplan.moon import moon_illumination
 from exoptima.config.computation import YEAR_OBS_NIGHTSTEP
 from exoptima.config.layout import DAYTIME_INTERVAL, DAY_OBS_NSAMPLES
 from exoptima.core.state import AppState, ObservabilityResult, NightObservability, MultiNightObservability
-app_state = AppState()
 
 ########################################################################################################################
 
