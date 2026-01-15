@@ -1,6 +1,6 @@
 # `exoptima` - **EXOTICA Observation Preparation Tool for Instrumentation and Mission Analysis** 
 
-<img src="exoptima/assets/exoptima-logo.svg" alt="EXOPTIMA logo" width="220" align="right">
+<img src="exoptima/assets/exoptima-logo.svg" alt="EXOPTIMA logo" width="250" align="right">
 
 `exoptima` is a browser-based interface for planning astronomical observations developed as support for the **EXOTICA** project. 
 
@@ -8,7 +8,62 @@ The user interface is opened via a command-line tool that launches a Panel serve
 
 ## ✨ Features
 
-**TBD**
+### 🌌 Target-Based Observability
+
+* Automatic SIMBAD resolution of targets
+* Single-night, monthly, and yearly observability computation
+* Supports **Sunset–Sunrise**, **Nautical**, and **Astronomical twilight** definitions
+* Constraints on Airmass and Moon properties, suitable for spectroscopy
+
+---
+
+### 🏔️ Observatory & Instrument Awareness
+
+* Built-in database of instruments with:
+
+  * Observatory location
+  * Telescope diameter
+  * Spectral resolution
+  * Weather Statistics
+
+* Supported spectrographs are EXOTICA, CORALIE, HARPS/HARPS-N, ESPRESSO (extensible)
+
+### 🎯 RV Precision Estimation
+
+* Reference-based RV model using:
+
+  * Spectral type
+  * V magnitude
+  * Exposure time
+
+* Scaling laws:
+
+  * **S/N ∝ D · √t · 10⁻⁰·²Δmag**
+  * **RV ∝ 1/SNR · R⁻¹·⁵**
+
+* Automatic fallback scaling from ESPRESSO for instruments without native models
+
+
+### 🪐 Planet Detection Significance
+
+* Computes RV semi-amplitude **K** using:
+
+  * Optimistic case (i = 90°, e = 0)
+  * Realistic case (⟨sin i⟩, median eccentricity)
+
+* Detection significance curves **K / σRV vs exposure time** for optimistic and realistic scenarios
+
+---
+
+### 🧩 Extensible Architecture
+
+* Modular design enabling:
+
+  * New instruments (and observatories)
+  * Future multi-scenario support
+  * batch processing for a large number of stars and constraints
+
+---
 
 ### RV Precision Estimation Model
 
@@ -20,58 +75,43 @@ For each supported spectral type (G2, K2, K7, M2), ESPRESSO provides:
 
 * Reference signal-to-noise ratio: `SNR_ref`
 * Reference RV precision: `σ_RV,ref`
-* Reference exposure time: `t_ref`
-* Reference magnitude: `m_ref`
 
-These values are defined for a standard configuration (e.g. 60 s exposure, V = 10).
+calculated for a reference exposure time `t_ref` of 10 min and a reference magnitude `m_ref` of V=10.
+
+These values were defined for a seeing of 1.0" and an airmass of 1.3, which we consider to be standard conditions.
 
 #### Signal-to-Noise Scaling
 
 The signal-to-noise ratio is assumed to scale as:
 
-[
-\mathrm{SNR} \propto D \cdot \sqrt{t} \cdot 10^{-0.2 (m - m_\mathrm{ref})}
-]
+SNR ∝ D · √t · 10^(-0.2 · (m − `m_ref`))
 
 where:
 
-* ( D ) is the telescope diameter
+* ( D ) is the telescope diameter for the chosen instrument
 * ( t ) is the exposure time
 * ( m ) is the target magnitude
 
-In practice:
+In practice, for the input-provided parameters:
 
-[
-\mathrm{SNR} =
-\mathrm{SNR}*{\mathrm{ref}}
-\times \frac{D}{D*{\mathrm{ref}}}
-\times \sqrt{\frac{t}{t_{\mathrm{ref}}}}
-\times 10^{-0.2 (m - m_{\mathrm{ref}})}
-]
+SNR = `SNR_ref` · (D / `D_ref`) · √(t / `t_ref`) · 10^(-0.2 · (m − `m_ref`))
 
 #### RV Precision Scaling
 
 Radial-velocity precision is assumed to scale as:
 
-[
-\sigma_\mathrm{RV} \propto \frac{1}{\mathrm{SNR}} \cdot R^{-1.5}
-]
+RV ∝ (1 / SNR) · R^(-1.5)
 
 where ( R ) is the spectral resolution.
 
 Thus:
 
-[
-\sigma_\mathrm{RV} =
-\sigma_{\mathrm{RV,ref}}
-\times \frac{\mathrm{SNR}*{\mathrm{ref}}}{\mathrm{SNR}}
-\times \left(\frac{R*{\mathrm{ref}}}{R}\right)^{1.5}
-]
+σ_RV = `σ_RV,ref` · (`SNR_ref` / SNR) · (`R_ref` / R)^1.5
 
 #### Instrument Handling
 
 * If an instrument provides its own RV estimation model, it is used directly.
-* Otherwise, ESPRESSO is used as the reference instrument and results are scaled using:
+* Otherwise, [ESPRESSO](https://www.eso.org/observing/etc/bin/gen/form?INS.NAME=ESPRESSO+INS.MODE=spectro) is used as the reference instrument and results are scaled using:
 
   * Telescope diameter ratio
   * Spectral resolution ratio
@@ -83,15 +123,17 @@ Thus:
 This model:
 
 * Assumes photon-noise–dominated performance
-* Does not yet include:
+* Remains a good approximation for seeing conditions similar to the fiber diameter, which should be the case by construction
+* Does not (yet) include:
 
   * Throughput differences
   * Wavelength band dependence
   * Seeing, airmass, or sky background effects
-  * Stellar rotation or activity
+  * Stellar rotation 
 
 The goal is to provide **order-of-magnitude realistic estimates** suitable for feasibility assessment and instrument comparison, not detailed exposure-time calculator accuracy.
 
+The user is reminded graphically of the barrier of SNR < 30, where the approximations do not hold, and 30 < SNR < 50, where they are poor and should not be used either.
 
 ## 📦 Installation
 
@@ -122,18 +164,15 @@ To install in editable / developer mode use the flag `-e`; this enables live cod
 
 ## 🔧 Dependencies
 
-`exoptima` depends on the following Python packages:
-
-- Python ≥ 3.10
+`exoptima` uses Python ≥ 3.10 and depends on the following packages:
 - [NumPy](https://numpy.org/)
 - [Astropy](https://www.astropy.org/)
-- [Bokeh](https://bokeh.org/)
 - [Panel](https://panel.holoviz.org/)
 - [Matplotlib](https://matplotlib.org/)
 
 All dependencies are declared in `pyproject.toml` and are installed automatically when running `pip install .`.
 
-## 🖥️ Running and using `opt`
+## 🖥️ Running and using `exoptima`
 
 After installation, the software can be launched from the command line
 
@@ -167,8 +206,7 @@ exoptima/
     │   ├── __init__.py
     │   ├── state.py       
     │   ├── observability.py     
-    │   ├── precision.py         
-    │   └── rv_models.py   
+    │   └── precision.py   
     │
     ├── config/
     │   ├── __init__.py
@@ -190,9 +228,9 @@ exoptima/
 
 ## TODO
 - [ ] test precision estimation with ETCs
-- [ ] test throughput / wav.dep
-- [ ] include average / user-defined seeing and airmass penalty 
 - [ ] implement orbit sampling and transit scheduling
+- [ ] allow ingestion of input via files
+- [ ] include average / user-defined seeing and airmass penalty (?)
 - [ ] Implement monthly weather-loss statistics
 
 ## 📄 License

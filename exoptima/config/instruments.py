@@ -201,19 +201,19 @@ INSTRUMENTS: Dict[str, Instrument] = {
             reference_url="https://www.eso.org/sci/facilities/paranal/astroclimate/Obsconditions.html",
         ),
         rv_estimation=RVEstimation(
-            ref_exptime=60.0,
+            ref_exptime=600.0,
             ref_mag=10.0,
             ref_snr={
-                "G2": 150.0,
-                "K2": 180.0,
-                "K7": 220.0,
-                "M2": 250.0,
+                "G2": 112.456,
+                "K2": 113.19,
+                "K7": 114.972,
+                "M2": 110.771,
             },
             ref_rv_precision={
-                "G2": 0.10,
-                "K2": 0.08,
-                "K7": 0.06,
-                "M2": 0.05,
+                "G2": 0.53,
+                "K2": 0.53,
+                "K7": 0.52,
+                "M2": 0.54,
             },
         )
     ),

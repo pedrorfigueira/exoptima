@@ -1,4 +1,4 @@
-
+# full interface, putting together the header, control, and display
 from pathlib import Path
 import panel as pn
 
@@ -7,7 +7,7 @@ from exoptima.core.state import AppState
 from exoptima.config.layout import BUTTON_WIDTH, BUTTON_HEIGHT
 
 from exoptima.tabs.controls import (
-    make_star_tab, make_instrument_tab, make_observing_conditions_tab, make_planet_rv_tab)
+    make_star_tab, make_instrument_tab, make_observing_conditions_tab, make_planet_rv_tab, make_time_tab)
 from exoptima.tabs.display import (
     make_daily_observability_tab, make_monthly_observability_tab, make_yearly_observability_tab,
     make_precision_tab)
@@ -129,13 +129,38 @@ def make_header(app_state: AppState):
         star = app_state.star
         inst = app_state.instrument
         exptime = app_state.exposure_time
+        pp = app_state.planet_params
 
-        exptime_str = f"{exptime:.0f} s" if exptime is not None else "—"
+        # ---------------------------------
+        # Exposure time
+        # ---------------------------------
+        exptime_str = f"{exptime:.0f} s" if exptime is not None else "--"
 
+        # ---------------------------------
+        # Planet parameters (with fallback)
+        # ---------------------------------
+        if pp is not None and pp.planet_mass_mjup is not None:
+            planet_mass_str = f"{pp.planet_mass_mjup:.3g}"
+        else:
+            planet_mass_str = "--"
+
+        if pp is not None and pp.orbital_period_days is not None:
+            period_str = f"{pp.orbital_period_days:.3g}"
+        else:
+            period_str = "--"
+
+        if pp is not None and pp.stellar_mass_msun is not None:
+            stellar_mass_str = f"{pp.stellar_mass_msun:.3g}"
+        else:
+            stellar_mass_str = "--"
+
+        # ---------------------------------
+        # Build Markdown table
+        # ---------------------------------
         return f"""
-    | V mag | SpTp | Instrument | Exposure time |
-    |:-----:|:----:|:----------:|:-------------:|
-    | **{star.vmag:.2f}** | **{star.sptype}** | **{inst.name}** | **{exptime_str}** |
+    | V mag | SpTp | Instrument | Exp. time | Mp [MJup] | P [days] | M⋆ [MSun] |
+    |:-----:|:----:|:----------:|:---------:|:---------:|:--------:|:---------:|
+    | **{star.vmag:.2f}** | **{star.sptype}** | **{inst.name}** | **{exptime_str}** | **{planet_mass_str}** | **{period_str}** | **{stellar_mass_str}** |
     """
 
     # ---------------------------------
@@ -206,7 +231,8 @@ def make_control_tabs(app_state: AppState):
         ("Star", make_star_tab(app_state)),
         ("Instrument", make_instrument_tab(app_state)),
         ("Conditions", make_observing_conditions_tab(app_state)),
-        ("Planet & RVs", make_planet_rv_tab(app_state)),
+        ("Time", make_time_tab(app_state)),
+        ("Integration & Planet params", make_planet_rv_tab(app_state)),
         sizing_mode="stretch_width",
     )
 

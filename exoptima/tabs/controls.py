@@ -1,4 +1,4 @@
-# Control section and tabs definitions
+# Control (input) section and tab definitions
 
 import panel as pn
 
@@ -17,7 +17,7 @@ _CUSTOM_SIMBAD.add_votable_fields("flux(V)", "sp")
 from exoptima.config.layout import FORM_WIDGET_WIDTH, BUTTON_WIDTH, BUTTON_HEIGHT
 from exoptima.config.instruments import INSTRUMENTS
 
-from exoptima.core.state import AppState, Star
+from exoptima.core.state import AppState, Star, PlanetParameters, ObservingConditions
 
 # ----- helper functions -----
 
@@ -473,10 +473,12 @@ def make_observing_conditions_tab(app_state: AppState):
     # --------------------------------------------------
 
     def _update_conditions(*_):
-        app_state.conditions.max_airmass = max_airmass.value
-        app_state.conditions.min_duration = parse_min_time(min_time.value)
-        app_state.conditions.moon_separation = moon_separation.value
-        app_state.conditions.ignore_moon_if_fli = ignore_if_fli.value
+        app_state.conditions = ObservingConditions(
+            max_airmass=max_airmass.value,
+            min_duration=parse_min_time(min_time.value),
+            min_moon_separation=moon_separation.value,
+            ignore_moon_if_fli_above=ignore_if_fli.value,
+        )
 
     for w in (max_airmass, min_time, moon_separation, ignore_if_fli):
         w.param.watch(_update_conditions, "value")
@@ -769,12 +771,16 @@ def make_planet_rv_tab(app_state: AppState):
                 )
 
     def _update_planet_params(*_):
-        app_state.planet_params.planet_mass_mjup = planet_mass.value
-        app_state.planet_params.orbital_period_days = orbital_period.value
-        app_state.planet_params.stellar_mass_msun = stellar_mass.value
+        app_state.planet_params = PlanetParameters(
+            planet_mass_mjup=planet_mass.value,
+            orbital_period_days=orbital_period.value,
+            stellar_mass_msun=stellar_mass.value,
+        )
 
     for w in (planet_mass, orbital_period, stellar_mass):
         w.param.watch(_update_planet_params, "value")
+
+    print("AppState id:", id(app_state))
 
     # --------------------------------------------------
     # Instantaneous conditions (disabled)

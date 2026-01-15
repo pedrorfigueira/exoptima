@@ -1,3 +1,5 @@
+# command line interface for exoptima
+
 import argparse
 import panel as pn
 

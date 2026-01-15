@@ -1,4 +1,4 @@
-# Display section and tabs definitions
+# Display section and tab definitions
 
 import numpy as np
 
@@ -14,9 +14,6 @@ from astropy.coordinates import SkyCoord
 from exoptima.core.state import AppState, ObservabilityResult, MultiNightObservability
 from exoptima.config.layout import DISPLAY_MAIN_FRACTION, MONTH_XLABEL_STEP
 from exoptima.tabs.export import make_save_button
-
-from exoptima.core.precision import compute_rv_precision
-from exoptima.core.rv_models import compute_rv_amplitudes_two_cases, compute_detection_significance_curve
 
 # Custom divider
 
@@ -715,73 +712,22 @@ def make_precision_tab(app_state: AppState):
         if result is None:
             return
 
-        star = app_state.star
-        inst = app_state.instrument
+        # --------------------------------------------------
+        # Unpack results (single source of truth)
+        # --------------------------------------------------
+
+        times = result["times"]                 # seconds
+        snr_vals = result["snr_curve"]
+        rv_vals = result["rv_curve"]
+        req = result["requested"]
+        K_cases = result["K_cases"]
+        detectability = result["detectability"]
+
         t_req = app_state.exposure_time  # seconds
-        pp = getattr(app_state, "planet_params", None)
 
-        if star is None or inst is None or t_req is None:
-            return
-
-        spectral_type = star.sptype
-        vmag = star.vmag
-
-        # --------------------------------------------------
-        # X-axis range logic (seconds)
-        # --------------------------------------------------
-
-        if t_req < 15 * 60:
-            t_min = 60
-            t_max = 30 * 60
-        elif t_req < 30 * 60:
-            t_min = 60
-            t_max = 60 * 60
-        else:
-            t_min = 60
-            t_max = 3.0 * t_req
-
-        times = np.linspace(t_min, t_max, 60)
-
-        snr_vals = []
-        rv_vals = []
-
-        for t in times:
-            r = compute_rv_precision(
-                instrument=inst,
-                spectral_type=spectral_type,
-                vmag=vmag,
-                exposure_time=t,
-            )
-            if r is None:
-                snr_vals.append(np.nan)
-                rv_vals.append(np.nan)
-            else:
-                snr_vals.append(r["snr"])
-                rv_vals.append(r["rv_precision"])
-
-        snr_vals = np.array(snr_vals)
-        rv_vals = np.array(rv_vals)
-
-        # Requested point
-        snr_req = result["snr"]
-        rv_req = result["rv_precision"]
-        scaled_from = result.get("scaled_from", "—")
-
-        # --------------------------------------------------
-        # RV semi-amplitudes (if planet params defined)
-        # --------------------------------------------------
-
-        K_cases = None
-        if (
-            pp is not None
-            and pp.planet_mass_mjup is not None
-            and pp.orbital_period_days is not None
-        ):
-            K_cases = compute_rv_amplitudes_two_cases(
-                planet_mass_mjup=pp.planet_mass_mjup,
-                orbital_period_days=pp.orbital_period_days,
-                stellar_mass_msun=pp.stellar_mass_msun,
-            )
+        snr_req = req["snr"]
+        rv_req = req["rv_precision"]
+        scaled_from = req.get("scaled_from", "—")
 
         # --------------------------------------------------
         # Figure layout: 2x2 grid
@@ -802,6 +748,19 @@ def make_precision_tab(app_state: AppState):
         ax_snr.scatter([t_req / 60.0], [snr_req], s=80, zorder=5)
         ax_snr.set_ylabel("S/N", fontsize=9)
         ax_snr.grid(alpha=0.3)
+
+        snr_min = np.nanmin(snr_vals)
+        ymax = np.nanmax(snr_vals) * 1.05
+
+        # Red zone: SNR < 30
+        if snr_min < 30:
+            ax_snr.axhspan(0, 30, alpha=0.15, zorder=0)
+
+        # Orange zone: 30 <= SNR < 50
+        if snr_min < 50:
+            ax_snr.axhspan(30, 50, alpha=0.15, zorder=0)
+
+        ax_snr.set_ylim(bottom=0, top=ymax)
 
         ax_snr.annotate(
             f"S/N = {snr_req:.1f}",
@@ -835,14 +794,12 @@ def make_precision_tab(app_state: AppState):
         if K_cases is not None:
             ax_rv.axhline(
                 K_cases["optimistic"],
-                color="#1565c0",
                 ls="--",
                 lw=1.5,
                 label="K (optimistic)",
             )
             ax_rv.axhline(
                 K_cases["realistic"],
-                color="#6a1b9a",
                 ls=":",
                 lw=1.5,
                 label="K (realistic)",
@@ -855,42 +812,15 @@ def make_precision_tab(app_state: AppState):
 
         ax_sig.set_title("Detectability", fontsize=10)
 
-        if K_cases is not None:
+        if detectability is not None:
 
-            sig_opt = compute_detection_significance_curve(
-                exposure_times=times,
-                instrument=inst,
-                spectral_type=spectral_type,
-                vmag=vmag,
-                K_value=K_cases["optimistic"],
-            )
+            sig_opt = detectability["optimistic"]
+            sig_real = detectability["realistic"]
 
-            sig_real = compute_detection_significance_curve(
-                exposure_times=times,
-                instrument=inst,
-                spectral_type=spectral_type,
-                vmag=vmag,
-                K_value=K_cases["realistic"],
-            )
+            ax_sig.plot(times / 60.0, sig_opt, lw=2, label="Optimistic")
+            ax_sig.plot(times / 60.0, sig_real, lw=2, ls="--", label="Realistic")
 
-            ax_sig.plot(
-                times / 60.0,
-                sig_opt,
-                color="#1565c0",
-                lw=2,
-                label="Optimistic",
-            )
-
-            ax_sig.plot(
-                times / 60.0,
-                sig_real,
-                color="#6a1b9a",
-                lw=2,
-                ls="--",
-                label="Realistic",
-            )
-
-            ax_sig.axhline(1.0, color="grey", lw=1, ls=":")
+            ax_sig.axhline(1.0, lw=1, ls=":")
             ax_sig.set_ylabel("Detection significance (K / σRV)", fontsize=9)
             ax_sig.set_xlabel("Exposure time [min]", fontsize=9)
             ax_sig.grid(alpha=0.3)
@@ -909,7 +839,7 @@ def make_precision_tab(app_state: AppState):
             ax_sig.set_axis_off()
 
         # --------------------------------------------------
-        # Finalize
+        # Finalize plot
         # --------------------------------------------------
 
         plot_pane.object = fig
@@ -938,6 +868,12 @@ def make_precision_tab(app_state: AppState):
 
         stats_md.object = "### RV Precision Summary\n\n" + "\n".join(stats_lines)
 
+    # ONLY watch precision_result
     app_state.param.watch(update_precision_display, ["precision_result"])
 
-    return make_display_tab(plot_pane, stats_md, "RVPrecision_plot.pdf", "RVPrecision_summary.txt")
+    return make_display_tab(
+        plot_pane,
+        stats_md,
+        "RVPrecision_plot.pdf",
+        "RVPrecision_summary.txt",
+    )
