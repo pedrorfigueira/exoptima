@@ -7,7 +7,7 @@ from exoptima.core.state import AppState
 from exoptima.config.layout import BUTTON_WIDTH, BUTTON_HEIGHT
 
 from exoptima.tabs.controls import (
-    make_star_tab, make_instrument_tab, make_observing_conditions_tab, make_planet_rv_tab, make_time_tab)
+    make_star_tab, make_instrument_tab, make_observing_conditions_tab, make_planet_rv_tab, make_time_integration_tab)
 from exoptima.tabs.display import (
     make_daily_observability_tab, make_monthly_observability_tab, make_yearly_observability_tab,
     make_precision_tab)
@@ -108,14 +108,56 @@ def make_header(app_state: AppState):
         star = app_state.star
         inst = app_state.instrument
         c = app_state.conditions
+        pp = app_state.planet_params
 
         ref_time_str = app_state.reference_time.iso[:16] + " UTC"
 
+        # --------------------------------------------------
+        # Transit column logic
+        # --------------------------------------------------
+
+        include_transit = (
+                pp is not None and getattr(pp, "include_transit_in_observability", False)
+        )
+
+        if include_transit:
+            # T0
+            if pp.t0_jd is not None:
+                t0_str = f"{pp.t0_jd:.5f}"
+            else:
+                t0_str = "--"
+
+            # Period
+            if pp.orbital_period_days is not None:
+                period_str = f"{pp.orbital_period_days:.3g} d"
+            else:
+                period_str = "--"
+
+            # Duration
+            if pp.total_observation_duration is not None:
+                dur_str = f"{pp.total_observation_duration:.2f} h"
+            else:
+                dur_str = "--"
+
+            transit_cell = f"T0={t0_str}<br>P={period_str}<br>Dur={dur_str}"
+
+            header_extra = " | Transit constraint |"
+            sep_extra = " |:-----------------:|"
+            row_extra = f" | {transit_cell} |"
+        else:
+            header_extra = ""
+            sep_extra = ""
+            row_extra = ""
+
+        # --------------------------------------------------
+        # Build table
+        # --------------------------------------------------
+
         return f"""
-        | Target | RA (α) | Dec (δ) | Observatory | Weather losses | Airmass (max value, min dur.) | Moon (sep, Min FLI) | Night def. | Reference time |
-        |:------:|:------:|:-------:|:-----------:|:--------------:|:-----------------------------:|:-------------------:|:----------:|:--------------:|
-        | **{star.name}** | {star.ra} | {star.dec} | {inst.observatory.name} | {app_state.weather_losses_mode} | < {c.max_airmass} for {c.min_duration} | {c.min_moon_separation}° if > {c.ignore_moon_if_fli_above} | {app_state.night_definition} | {ref_time_str} |
-        """
+    | Target | RA (α) | Dec (δ) | Observatory | Weather losses | Airmass (max value, min dur.) | Moon (sep, Min FLI) | Night def. | Reference time{header_extra}
+    |:------:|:------:|:-------:|:-----------:|:--------------:|:-----------------------------:|:-------------------:|:----------:|:--------------:{sep_extra}
+    | **{star.name}** | {star.ra} | {star.dec} | {inst.observatory.name} | {app_state.weather_losses_mode} | < {c.max_airmass} for {c.min_duration} | {c.min_moon_separation}° if > {c.ignore_moon_if_fli_above} | {app_state.night_definition} | {ref_time_str}{row_extra}
+    """
 
     context_md = pn.pane.Markdown(
         "",
@@ -217,22 +259,13 @@ def make_header(app_state: AppState):
         sizing_mode="stretch_width",
     )
 
-
-# Custom divider
-
-divider_h = pn.Spacer(
-    height=1,
-    sizing_mode="stretch_width",
-    styles={"background-color": "#e0e0e0"},
-)
-
 def make_control_tabs(app_state: AppState):
     return pn.Tabs(
         ("Star", make_star_tab(app_state)),
         ("Instrument", make_instrument_tab(app_state)),
         ("Conditions", make_observing_conditions_tab(app_state)),
-        ("Time", make_time_tab(app_state)),
-        ("Integration & Planet params", make_planet_rv_tab(app_state)),
+        ("Time & Integration", make_time_integration_tab(app_state)),
+        ("Planet parameters", make_planet_rv_tab(app_state)),
         sizing_mode="stretch_width",
     )
 
@@ -250,10 +283,5 @@ def make_output_tabs(app_state: AppState):
         ("RV precision", precision),
         sizing_mode="stretch_both",
     )
-
-    # Apply base class to all
-    for i in range(len(tabs)):
-        tabs[i].css_classes = ["exoptima-tab-label", "exoptima-tab-disabled"]
-        tabs[i].disabled = True
 
     return tabs

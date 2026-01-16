@@ -506,7 +506,7 @@ def make_observing_conditions_tab(app_state: AppState):
     )
 
 
-def make_time_tab(app_state):
+def make_time_integration_tab(app_state):
 
     night_duration_title =  pn.pane.HTML("<div style='font-size: 1.3em; font-weight: normal;'>Night limits</div>")
 
@@ -711,6 +711,24 @@ def make_time_tab(app_state):
         sizing_mode="stretch_width",
     )
 
+    # ----------------------------
+    # Exptime section
+    # ----------------------------
+
+    exptime_title = pn.pane.HTML("<div style='font-size: 1.3em; font-weight: normal;'>Exposure Time</div>")
+
+    exptime_widget = pn.widgets.FloatInput(
+        name="Exposure time [s]",
+        value=60.0,
+        width=FORM_WIDGET_WIDTH // 2,
+    )
+
+    def _on_exptime_change(event):
+        app_state.exposure_time = event.new
+
+    exptime_widget.param.watch(_on_exptime_change, "value")
+
+
     return pn.Column(
 
         night_duration_title,
@@ -730,26 +748,18 @@ def make_time_tab(app_state):
 
         status,
 
+        pn.Spacer(height=10), divider_h, pn.Spacer(height=10),
+
+        exptime_title,
+        exptime_widget,
+
         sizing_mode="stretch_width",
     )
 
 def make_planet_rv_tab(app_state: AppState):
     # ----------------------------
-    # Planet & RV precision tabs
+    # Planet parameters tab
     # ----------------------------
-
-    exptime_title =  pn.pane.HTML("<div style='font-size: 1.3em; font-weight: normal;'>Exposure Time</div>")
-
-    exptime_widget = pn.widgets.FloatInput(
-                name="Exposure time [s]",
-                value=60.0,
-                width=FORM_WIDGET_WIDTH // 2,
-    )
-
-    def _on_exptime_change(event):
-        app_state.exposure_time = event.new
-
-    exptime_widget.param.watch(_on_exptime_change, "value")
 
     planet_title =  pn.pane.HTML("<div style='font-size: 1.3em; font-weight: normal;'>Planet Parameters</div>")
 
@@ -770,17 +780,46 @@ def make_planet_rv_tab(app_state: AppState):
                 width=FORM_WIDGET_WIDTH // 2,
                 )
 
+    t0_input = pn.widgets.FloatInput(
+        name="T0 [JD]",
+        value=None,
+        step=0.0001,
+        width=FORM_WIDGET_WIDTH,
+    )
+
+    total_duration_input = pn.widgets.FloatInput(
+        name="Obs. duration [h]",
+        value=None,
+        step=0.5,
+        width=FORM_WIDGET_WIDTH // 2,
+    )
+
+    include_transit_switch = pn.widgets.Switch(
+        name="Observability of Transit",
+        value=False,
+    )
+
     def _update_planet_params(*_):
         app_state.planet_params = PlanetParameters(
             planet_mass_mjup=planet_mass.value,
             orbital_period_days=orbital_period.value,
             stellar_mass_msun=stellar_mass.value,
+            t0_jd=t0_input.value,
+            total_observation_duration=total_duration_input.value,
+            include_transit_in_observability=include_transit_switch.value,
         )
 
-    for w in (planet_mass, orbital_period, stellar_mass):
-        w.param.watch(_update_planet_params, "value")
+        app_state.param.trigger("planet_params")
 
-    print("AppState id:", id(app_state))
+    for w in (
+            planet_mass,
+            orbital_period,
+            stellar_mass,
+            t0_input,
+            total_duration_input,
+            include_transit_switch,
+    ):
+        w.param.watch(_update_planet_params, "value")
 
     # --------------------------------------------------
     # Instantaneous conditions (disabled)
@@ -815,11 +854,10 @@ def make_planet_rv_tab(app_state: AppState):
         widget.disabled = True
 
     return pn.Column(
-        exptime_title,
-        exptime_widget,
-        pn.Spacer(height=10),
         planet_title,
         pn.Row(planet_mass, orbital_period, stellar_mass),
+        pn.Spacer(height=8),
+        pn.Row(t0_input, total_duration_input, pn.Column(pn.Spacer(height=20), include_transit_switch)),
 
         pn.Spacer(height=10), divider_h, pn.Spacer(height=10),
 

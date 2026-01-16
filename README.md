@@ -4,7 +4,7 @@
 
 `exoptima` is a browser-based interface for planning astronomical observations developed as support for the **EXOTICA** project. 
 
-The user interface is opened via a command-line tool that launches a Panel server and runs entirely in Python.
+The user interface is opened via a command-line tool that launches a Panel server and runs entirely on Python.
 
 ## ✨ Features
 
@@ -15,7 +15,6 @@ The user interface is opened via a command-line tool that launches a Panel serve
 * Supports **Sunset–Sunrise**, **Nautical**, and **Astronomical twilight** definitions
 * Constraints on Airmass and Moon properties, suitable for spectroscopy
 
----
 
 ### 🏔️ Observatory & Instrument Awareness
 
@@ -52,8 +51,6 @@ The user interface is opened via a command-line tool that launches a Panel serve
   * Realistic case (⟨sin i⟩, median eccentricity)
 
 * Detection significance curves **K / σRV vs exposure time** for optimistic and realistic scenarios
-
----
 
 ### 🧩 Extensible Architecture
 
@@ -228,7 +225,7 @@ exoptima/
 
 ## TODO
 - [ ] test precision estimation with ETCs
-- [ ] implement orbit sampling and transit scheduling
+- [ ] create orbit sampling tab
 - [ ] allow ingestion of input via files
 - [ ] include average / user-defined seeing and airmass penalty (?)
 - [ ] Implement monthly weather-loss statistics

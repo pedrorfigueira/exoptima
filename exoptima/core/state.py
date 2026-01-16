@@ -29,9 +29,13 @@ class PlanetParameters:
     """
     Planet and stellar parameters relevant for RV precision and detectability.
     """
-    planet_mass_mjup: Optional[float] = None     # MJup
-    orbital_period_days: Optional[float] = None  # days
-    stellar_mass_msun: float = 1.0                # MSun (default 1)
+    planet_mass_mjup: Optional[float] = None            # MJup
+    orbital_period_days: Optional[float] = None         # days
+    stellar_mass_msun: float = 1.0                      # MSun (default 1)
+
+    t0_jd: Optional[float] = None                       # JD reference transit time
+    total_observation_duration: Optional[float] = None  # hours
+    include_transit_in_observability: bool = False
 
 @dataclass
 class ObservingConditions:
