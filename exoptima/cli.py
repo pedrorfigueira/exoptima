@@ -3,6 +3,7 @@
 import argparse
 import panel as pn
 
+from exoptima import __version__
 from exoptima.app import app
 
 def parse_args():
@@ -46,6 +47,8 @@ def main():
     args = parse_args()
 
     print("\n🔭  Launching EXOPTIMA! \n")
+
+    print(f"v{__version__}")
 
     pn.serve(
         {args.endpoint: app},

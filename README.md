@@ -4,6 +4,8 @@
 
 `exoptima` is a browser-based interface for planning astronomical observations developed as support for the **EXOTICA** project. 
 
+It streamlines observability computations, using SIMBAD id queries, observatory and instrument databases, and typical constraints used for RV studies. These can be done not only for a night but visualized over a month or the whole year. It also allows calculation of transit visibility. It uses simple scaling laws to estimate the RV precision attained on different spectrographs, including **EXOTICA**.
+
 The user interface is opened via a command-line tool that launches a Panel server and runs entirely on Python.
 
 ## ✨ Features
@@ -117,16 +119,10 @@ Thus:
 
 #### Scope and Limitations
 
-This model:
+This model assumes:
 
-* Assumes photon-noise–dominated performance
-* Remains a good approximation for seeing conditions similar to the fiber diameter, which should be the case by construction
-* Does not (yet) include:
-
-  * Throughput differences
-  * Wavelength band dependence
-  * Seeing, airmass, or sky background effects
-  * Stellar rotation 
+* photon-noise–dominated performance
+* seeing conditions comparable to the fiber diameter, which should be the case by design
 
 The goal is to provide **order-of-magnitude realistic estimates** suitable for feasibility assessment and instrument comparison, not detailed exposure-time calculator accuracy.
 
@@ -164,6 +160,8 @@ To install in editable / developer mode use the flag `-e`; this enables live cod
 `exoptima` uses Python ≥ 3.10 and depends on the following packages:
 - [NumPy](https://numpy.org/)
 - [Astropy](https://www.astropy.org/)
+- [Astroquery](https://astroquery.readthedocs.io)
+- [Astroplan](https://astroplan.readthedocs.io/)
 - [Panel](https://panel.holoviz.org/)
 - [Matplotlib](https://matplotlib.org/)
 
@@ -177,19 +175,14 @@ After installation, the software can be launched from the command line
 exoptima
 ```
 
-Where:
-
- - `--port 6006` specifies the port on which the web server runs. Default: `5006`.
- - `--host 0.0.0.0` specifies the network interface to bind to; useful when accessing the interface from another machine on the same network. Default: `127.0.0.1`
- - `--no-show` prevent `exoptima` from opening a web browser; recommended when running on a remote machine or over SSH.
-
-When launched, the interface opens in your browser and displays a series of controls (left) and visibility and analysis tools (right). 
+and the interface opens in your browser, displaying a series of controls (left) and visualization panes (right). 
 
 ## 📚 Folder Structure
 
 ```
 exoptima/
 ├── README.md
+├── CHANGELOG.md
 ├── LICENSE
 ├── pyproject.toml
 ├── .gitignore
@@ -240,6 +233,6 @@ Pedro Figueira acknowledges financial support from the Severo Ochoa grant CEX202
 
 This project depends on several open-source scientific and visualization packages. We gratefully acknowledge their authors and contributors:
 
-[NumPy](https://numpy.org/) and [Scipy](https://scipy.org/) provide the core array infrastructure and numerical utilities used in backend processing. [Astropy](https://www.astropy.org/) provides tools for FITS and for reading, parsing, and handling astronomical data formats. [Matplotlib](https://matplotlib.org/) is used for plotting and[Panel](https://panel.holoviz.org/) enables the UI layout, reactive widgets, and server backend that make this application possible as a web interface.
+NumPy and SciPy provide the core array infrastructure and numerical utilities used in backend processing. Astropy supplies the foundational astronomy framework, including coordinate handling, time systems, and FITS support. Astroplan is used for observability calculations and scheduling-related constraints, while Astroquery enables access to external astronomical databases such as SIMBAD. Matplotlib is used for plotting, and Panel provides the UI layout, reactive widgets, and server backend that power the web-based interface.
 
 We extend sincere thanks to all of these communities for developing and maintaining the scientific Python ecosystem.
