@@ -136,7 +136,7 @@ The user is reminded graphically of the barrier of SNR < 30, where the approxima
 
 For instance, using `conda`
 ```
-conda create -n fist python=3.10
+conda create -n exoptima python=3.10
 conda activate exoptima
 ```
 ### 3. Download and install package locally

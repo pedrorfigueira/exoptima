@@ -46,9 +46,7 @@ def main():
 
     args = parse_args()
 
-    print("\n🔭  Launching EXOPTIMA! \n")
-
-    print(f"v{__version__}")
+    print(f"\n🔭  Launching EXOPTIMA, v{__version__}\n")
 
     pn.serve(
         {args.endpoint: app},

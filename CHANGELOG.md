@@ -14,3 +14,14 @@
 ### Fixed
 - Planet parameter propagation
 - Transit handling logic
+
+## v1.0.1 — 2026-01-20
+### Added
+- CARMENES-VIS, NIRPS-HA, NIRPS-HE instruments
+
+### Changed
+- EXOTICA resolution updated to 65k
+- Weather statistics moved to inside corresponding Observatory class
+
+### Fixed
+- pyproject.toml include matplotlib and assets from .svg in a clean way

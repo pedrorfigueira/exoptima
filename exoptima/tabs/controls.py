@@ -344,7 +344,7 @@ def make_instrument_tab(app_state: AppState):
 
     def update_weather_info(*_):
         instrument = INSTRUMENTS[instrument_select.value]
-        stats = instrument.weather_statistics
+        stats = instrument.observatory.weather_statistics
 
         table_box.clear()
 

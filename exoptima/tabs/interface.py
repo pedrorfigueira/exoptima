@@ -1,5 +1,4 @@
 # full interface, putting together the header, control, and display
-from pathlib import Path
 import panel as pn
 
 from exoptima.core.state import AppState
@@ -18,8 +17,9 @@ from exoptima.tabs.display import (
 
 def load_svg(name: str) -> str:
     """Load an SVG asset as a string."""
-    assets_dir = Path(__file__).parent / ".." / "assets"
-    return (assets_dir / name).read_text(encoding="utf-8")
+    from importlib import resources
+    logo_path = resources.files("exoptima").joinpath(f"assets/{name}")
+    return logo_path.read_text(encoding="utf-8")
 
 
 def make_header(app_state: AppState):
