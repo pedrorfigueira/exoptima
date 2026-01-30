@@ -11,8 +11,7 @@ from astropy.time import Time
 from astroquery.simbad import Simbad
 
 # Configure SIMBAD once
-_CUSTOM_SIMBAD = Simbad()
-_CUSTOM_SIMBAD.add_votable_fields("flux(V)", "sp")
+_BASE_SIMBAD = Simbad()
 
 from exoptima.config.layout import FORM_WIDGET_WIDTH, BUTTON_WIDTH, BUTTON_HEIGHT
 from exoptima.config.instruments import INSTRUMENTS
@@ -141,6 +140,7 @@ def make_star_tab(app_state: AppState):
 
     vmag = pn.widgets.FloatInput(
         name="V mag",
+        value=None,
         step=0.1,
         width=FORM_WIDGET_WIDTH // 2,
     )
@@ -189,14 +189,24 @@ def make_star_tab(app_state: AppState):
     # =================================================
 
     def resolve_star(event=None):
+
+        # Clear previous values to avoid stale data
+        vmag.value = None
+        sp_type.value = "G2"  # or your default
+        sp_type_simbad.object = ""
+
         name = star_name.value.strip()
         if not name:
             status.object = "⚠️ Please enter a star name."
             return
 
         try:
-            result = _CUSTOM_SIMBAD.query_object(name)
-            if result is None:
+            # ---------------------------
+            # Step 1: basic query (coords only)
+            # ---------------------------
+            result = _BASE_SIMBAD.query_object(name)
+
+            if result is None or len(result) == 0:
                 status.object = f"⚠️ Object **{name}** not found in SIMBAD."
                 return
 
@@ -209,30 +219,41 @@ def make_star_tab(app_state: AppState):
             ra.value = coord.ra.to_string(unit=u.hour, sep=":", pad=True, precision=0)
             dec.value = coord.dec.to_string(unit=u.deg, sep=":", alwayssign=True, precision=0)
 
-            if "V" in result.colnames and result["V"][0] is not None:
-                vmag.value = round(float(result["V"][0]), 2)
+            # ---------------------------
+            # Step 2: optional photometry query
+            # ---------------------------
+            simbad_phot = Simbad()
+            simbad_phot.add_votable_fields("flux(V)", "sp")
 
-            if "sp_type" in result.colnames and result["sp_type"][0]:
-                simbad_sp = result["sp_type"][0]
-                sp_type_simbad.object = f"(Simbad: {simbad_sp})"
-                mapped = map_simbad_sptype_to_model(simbad_sp)
-                if mapped:
-                    sp_type.value = mapped
-            else:
-                sp_type_simbad.object = ""
+            phot = simbad_phot.query_object(name)
 
+            vmag_msg = "⚠️ V mag not available"
+            sp_msg = "⚠️ SpT not available"
+
+            if phot is not None and len(phot) > 0:
+
+                if "V" in phot.colnames and phot["V"][0] is not None:
+                    vmag.value = round(float(phot["V"][0]), 2)
+                    vmag_msg = "V mag loaded"
+
+                if "sp_type" in phot.colnames and phot["sp_type"][0]:
+                    sp = phot["sp_type"][0]
+                    mapped = map_simbad_sptype_to_model(sp)
+                    if mapped:
+                        sp_type.value = mapped
+                        sp_msg = f"SpT → {mapped}"
+
+            # ---------------------------
+            # Update app state
+            # ---------------------------
             _update_star_state()
 
-            if app_state.star_coords_valid:
-                app_state.star = Star(
-                    name=star_name.value,
-                    ra=ra.value,
-                    dec=dec.value,
-                    vmag=vmag.value,
-                    sptype=sp_type.value,
-                )
-
-            status.object = f"✓ Resolved **{name}** via SIMBAD."
+            status.object = (
+                f"✓ Resolved **{name}**\n"
+                f"- Coordinates loaded\n"
+                f"- {vmag_msg}\n"
+                f"- {sp_msg}"
+            )
 
         except Exception as e:
             status.object = f"❌ SIMBAD query failed: `{e}`"
@@ -264,7 +285,7 @@ def make_star_tab(app_state: AppState):
             resolve_button,
         ),
         coord_status,
-        pn.Row(vmag, pn.Row(sp_type, sp_type_simbad)),
+        pn.Row(vmag, sp_type),
         pn.Row(pn.Spacer(width=20),status),
         sizing_mode="stretch_width",
     )

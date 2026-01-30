@@ -1,1 +1,6 @@
-__version__ = "1.0.1"
+# exoptima/__init__.py
+
+from importlib.metadata import version
+
+__version__ = version("exoptima")
+PACKAGE_NAME = "exoptima"
