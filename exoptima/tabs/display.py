@@ -23,10 +23,15 @@ divider_h = pn.Spacer(
     styles={"background-color": "#e0e0e0"},
 )
 
-def make_display_tab(plot_pane, stats_pane, plot_save_filename="plot.pdf", stats_save_filename="summary.txt"):
-
-    plot_view = make_save_button(plot_pane, plot_save_filename)
-    summary_view = make_save_button(stats_pane, stats_save_filename)
+def make_display_tab(
+    plot_pane,
+    stats_pane,
+    header_pane,
+    plot_save_filename="plot.pdf",
+    stats_save_filename="summary.txt",
+):
+    plot_view = make_save_button(plot_pane, plot_save_filename, header_pane)
+    summary_view = make_save_button(stats_pane, stats_save_filename, header_pane)
 
     return pn.Column(
         pn.Column(plot_view,
@@ -201,8 +206,6 @@ def make_daily_observability_tab(app_state: AppState):
             obs = app_state.observability
             verdict_text, verdict_color = _instant_badge(is_observable_now, t_ref)
 
-            color = "#2e7d32" if obs.is_observable else "#b00020"
-
             # Indices where target is observable
             idx = np.where(mask)[0]
 
@@ -217,17 +220,27 @@ def make_daily_observability_tab(app_state: AppState):
             else:
                 time_window_str = "(not observable)"
 
+            # --------------------------------------------------
+            # Optional statistics sentence (only if observable)
+            # --------------------------------------------------
+            extra_stats = ""
+            if obs.is_observable:
+                extra_stats = f"""
+        During the night, the target reaches a **minimum airmass of {obs.min_airmass:.2f}**, a **minimum Moon separation of {obs.min_moon_sep:.1f}°**, with an **average Moon illumination of {obs.mean_fli:.2f}**
+        """
+
             return f"""
         ### Summary for Night Observability
         <span style="color:{verdict_color}; font-weight:bold;"> {verdict_text} </span>
         (altitude: **{alt_ref:.1f}°**, airmass: **{airmass_ref:.2f}**)
-   
+
         **Total observable time:** **{hours} h {minutes} min** {time_window_str}
 
-        During the night, the target reaches a **minimum airmass of {obs.min_airmass:.2f}**,  a **minimum Moon separation of {obs.min_moon_sep:.1f}°**,  with an **average Moon illumination of {obs.mean_fli:.2f}**
+        {extra_stats}
 
         **Night:**  
-        Beginning: **{obs.night_start.iso[11:16]} UT**; End: **{obs.night_end.iso[11:16]} UT**  Total night duration: **{obs.night_duration.to_value(u.hour):.2f} h**
+        Beginning: **{obs.night_start.iso[11:16]} UT**; End: **{obs.night_end.iso[11:16]} UT**  
+        Total night duration: **{obs.night_duration.to_value(u.hour):.2f} h**
         """
 
         # ----------------------------
@@ -246,8 +259,13 @@ def make_daily_observability_tab(app_state: AppState):
     # )
     app_state.param.watch(update_daily_observability, ["observability"])
 
-    return make_display_tab(plot_pane, stats_md, "NightObs_plot.pdf", "NightObs_summary.txt")
-
+    return make_display_tab(
+        plot_pane,
+        stats_md,
+        app_state.header_pane,
+        "NightObs_plot.pdf",
+        "NightObs_summary.txt",
+    )
 
 #####
 
@@ -457,8 +475,13 @@ def make_monthly_observability_tab(app_state: AppState):
 
     app_state.param.watch(update_monthly_observability, ["monthly_observability"])
 
-    return make_display_tab(plot_pane, stats_md, "NightObs_plot.pdf", "NightObs_summary.txt")
-
+    return make_display_tab(
+        plot_pane,
+        stats_md,
+        app_state.header_pane,
+        "MonthObs_plot.pdf",
+        "MonthObs_summary.txt",
+    )
 
 def make_yearly_observability_tab(app_state: AppState):
 
@@ -635,11 +658,11 @@ def make_yearly_observability_tab(app_state: AppState):
 
             if n_obs == 0:
                 return f"""
-### Summary for Yearly Observability
+        ### Summary for Yearly Observability
 
-- Observable nights: **0 / {n_total}**
-- The target is not observable on any night in this period.
-"""
+        - **Observable night fraction:** **0.0%**
+        - The target is not observable on any night in this period.
+        """
 
             obs_hours = np.array([
                 n.result.observable_time.to_value(u.hour)
@@ -665,9 +688,9 @@ def make_yearly_observability_tab(app_state: AppState):
             weather_mode = app_state.weather_losses_mode
 
             if (
-                weather_mode == "Yearly average"
-                and inst is not None
-                and inst.weather_statistics is not None
+                    weather_mode == "Yearly average"
+                    and inst is not None
+                    and inst.weather_statistics is not None
             ):
                 p = inst.weather_statistics.yearly_usable_fraction
                 effective_nights = n_obs * p
@@ -675,32 +698,37 @@ def make_yearly_observability_tab(app_state: AppState):
 
                 weather_line = f"""
 
-- **Considering yearly-averaged weather losses:**  
-  **{effective_nights:.1f} effective nights**, **{effective_hours:.1f} h total observable time**
-"""
+        - **Considering yearly-averaged weather losses:**  
+          **{effective_nights:.1f} effective nights**, **{effective_hours:.1f} h total observable time**
+        """
 
             return f"""
-### Summary for Yearly Observability
+        ### Summary for Yearly Observability
 
-- **Observable nights:** **{n_obs} / {n_total}**  (**{frac:.1%}**)  
-  **Total observable time:** **{total_hours:.2f} h**  
-  **Mean observable time per night:** **{mean_hours:.2f} h**  
-  ({first_date} → {last_date})
+        - **Observable night fraction:** **{frac:.1%}**
+        - **Total observable time:** **{total_hours:.2f} h**
+        - **Mean observable time per night:** **{mean_hours:.2f} h**
+        ({first_date} → {last_date})
 
-- **Maximum observable time:**  
-  **{max_hours:.2f} h** on **{max_date}**
+        - **Maximum observable time:**  
+        **{max_hours:.2f} h** on **{max_date}**
 
-- **Minimum observable time:**  
-  **{min_hours:.2f} h** on **{min_date}**
-{weather_line}
-"""
+        - **Minimum observable time:**  
+        **{min_hours:.2f} h** on **{min_date}**
+        {weather_line}
+        """
 
         stats_md.object = _make_yearly_stats_table(yearly)
 
     app_state.param.watch(update_yearly_observability, ["yearly_observability"])
 
-    return make_display_tab(plot_pane, stats_md, "YearObs_plot.pdf", "YearObs_summary.txt")
-
+    return make_display_tab(
+        plot_pane,
+        stats_md,
+        app_state.header_pane,
+        "YearObs_plot.pdf",
+        "YearObs_summary.txt",
+    )
 
 def make_precision_tab(app_state: AppState):
 
@@ -874,6 +902,7 @@ def make_precision_tab(app_state: AppState):
     return make_display_tab(
         plot_pane,
         stats_md,
+        app_state.header_pane,
         "RVPrecision_plot.pdf",
         "RVPrecision_summary.txt",
     )

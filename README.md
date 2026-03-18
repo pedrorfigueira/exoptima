@@ -14,7 +14,6 @@ The user interface is opened via a command-line tool that launches a Panel serve
 
 * Automatic SIMBAD resolution of targets
 * Single-night, monthly, and yearly observability computation
-* Supports **Sunset–Sunrise**, **Nautical**, and **Astronomical twilight** definitions
 * Constraints on Airmass and Moon properties, suitable for spectroscopy
 
 
@@ -27,15 +26,11 @@ The user interface is opened via a command-line tool that launches a Panel serve
   * Spectral resolution
   * Weather Statistics
 
-* Supported spectrographs are EXOTICA, CORALIE, HARPS/HARPS-N, ESPRESSO (extensible)
+* Supported spectrographs: EXOTICA, CORALIE, HARPS/HARPS-N, ESPRESSO, KPF, CARMENES and NIRPS (extensible)
 
 ### 🎯 RV Precision Estimation
 
-* Reference-based RV model using:
-
-  * Spectral type
-  * V magnitude
-  * Exposure time
+* Reference-based RV model using V magnitude, Spectral type, and Exposure time.
 
 * Scaling laws:
 

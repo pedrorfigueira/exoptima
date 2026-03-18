@@ -31,6 +31,7 @@ warnings.simplefilter("ignore", AstropyWarning)
 
 def create_app():
     header = make_header(app_state)
+    app_state.header_pane = header
 
     left_tabs = make_control_tabs(app_state)
     right_tabs = make_output_tabs(app_state)
