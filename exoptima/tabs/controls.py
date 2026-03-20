@@ -223,36 +223,81 @@ def make_star_tab(app_state: AppState):
             # Step 2: optional photometry query
             # ---------------------------
             simbad_phot = Simbad()
-            simbad_phot.add_votable_fields("flux(V)", "sp")
+            simbad_phot.add_votable_fields("flux(V)", "flux(B)", "sp", "ids")
 
             phot = simbad_phot.query_object(name)
 
             vmag_msg = "⚠️ V mag not available"
             sp_msg = "⚠️ SpT not available"
 
+            gaia_id_msg = "⚠️ Gaia DR3 ID not found"
+            bv_msg = "⚠️ B–V not available"
+
             if phot is not None and len(phot) > 0:
 
+                # ---------------------------
+                # V magnitude
+                # ---------------------------
                 if "V" in phot.colnames and phot["V"][0] is not None:
                     vmag.value = round(float(phot["V"][0]), 2)
                     vmag_msg = "V mag loaded"
 
+                # ---------------------------
+                # Spectral type
+                # ---------------------------
                 if "sp_type" in phot.colnames and phot["sp_type"][0]:
                     sp = phot["sp_type"][0]
                     mapped = map_simbad_sptype_to_model(sp)
                     if mapped:
                         sp_type.value = mapped
-                        sp_msg = f"SpT → {mapped}"
+                        sp_msg = f"SpT → **{mapped}**"
+
+                # ---------------------------
+                # B–V color
+                # ---------------------------
+                if (
+                        "B" in phot.colnames and phot["B"][0] is not None
+                        and "V" in phot.colnames and phot["V"][0] is not None
+                ):
+                    bmag = float(phot["B"][0])
+                    vmag_val = float(phot["V"][0])
+                    bv = bmag - vmag_val
+                    bv_msg = f"B–V = **{bv:.2f}**"
+
+                # ---------------------------
+                # Gaia DR3 ID (from identifiers)
+                # ---------------------------
+                if "ids" in phot.colnames and phot["ids"][0]:
+                    ids_str = phot["ids"][0]
+
+                    for token in ids_str.split("|"):
+                        token = token.strip()
+                        if token.startswith("Gaia DR3"):
+                            gaia_id = token.replace("Gaia DR3", "").strip()
+
+                            gaia_url = (
+                                "https://gea.esac.esa.int/archive/"
+                                f"?target=Gaia+DR3+{gaia_id}"
+                            )
+
+                            gaia_id_msg = f'Gaia DR3 <a href="{gaia_url}" target="_blank"><b>{gaia_id}</b></a>'
+                            break
 
             # ---------------------------
             # Update app state
             # ---------------------------
             _update_star_state()
 
+            simbad_url = f"https://simbad.cds.unistra.fr/simbad/sim-id?Ident={name.replace(' ', '+')}"
+            name_link = f'<a href="{simbad_url}" target="_blank"><b>{name}</b></a>'
+
             status.object = (
-                f"✓ Resolved **{name}**\n"
+                f"✓ Resolved {name_link}\n"
                 f"- Coordinates loaded\n"
                 f"- {vmag_msg}\n"
-                f"- {sp_msg}"
+                f"- {sp_msg}\n"
+                f"- {bv_msg}\n"
+                f"- {gaia_id_msg}"
             )
 
         except Exception as e:
@@ -272,6 +317,25 @@ def make_star_tab(app_state: AppState):
     vmag.param.watch(_on_edit, "value")
 
     # =================================================
+    # Exposure time
+    # =================================================
+
+    exptime_title = pn.pane.HTML(
+        "<div style='font-size: 1.3em; font-weight: normal;'>Exposure Time</div>"
+    )
+
+    exptime_widget = pn.widgets.FloatInput(
+        name="Exposure time [s]",
+        value=60.0,
+        width=FORM_WIDGET_WIDTH // 2,
+    )
+
+    def _on_exptime_change(event):
+        app_state.exposure_time = event.new
+
+    exptime_widget.param.watch(_on_exptime_change, "value")
+
+    # =================================================
     # Layout
     # =================================================
 
@@ -287,6 +351,13 @@ def make_star_tab(app_state: AppState):
         coord_status,
         pn.Row(vmag, sp_type),
         pn.Row(pn.Spacer(width=20),status),
+
+        pn.Spacer(height=10),
+        divider_h,
+        pn.Spacer(height=10),
+        exptime_title,
+        exptime_widget,
+
         sizing_mode="stretch_width",
     )
 
@@ -317,11 +388,12 @@ def make_instrument_tab(app_state: AppState):
     def update_instrument_info():
         inst = INSTRUMENTS[instrument_select.value]
         instrument_info.object = (
-            "| Observatory | Tel. Diameter | Resolution |\n"
-            "|:-----------:|:-------------:|:----------:|\n"
-            f"| {inst.observatory.name} | "
-            f"{inst.telescope_diameter:.1f} m | "
-            f"{inst.resolution:,}".replace(",", " ")
+                "| Observatory | Tel. Diameter | Resolution | Preset [s] | Readout [s] |\n"
+                "|:-----------:|:-------------:|:----------:|:----------:|:------------:|\n"
+                f"| {inst.observatory.name} | "
+                f"{inst.telescope_diameter:.1f} m | "
+                f"{inst.resolution:,}".replace(",", " ")
+                + f" | {inst.telescope_preset:.0f} | {inst.readout:.0f} |"
         )
 
     # --------------------------------------------------
@@ -527,7 +599,7 @@ def make_observing_conditions_tab(app_state: AppState):
     )
 
 
-def make_time_integration_tab(app_state):
+def make_time_tab(app_state):
 
     night_duration_title =  pn.pane.HTML("<div style='font-size: 1.3em; font-weight: normal;'>Night limits</div>")
 
@@ -732,24 +804,6 @@ def make_time_integration_tab(app_state):
         sizing_mode="stretch_width",
     )
 
-    # ----------------------------
-    # Exptime section
-    # ----------------------------
-
-    exptime_title = pn.pane.HTML("<div style='font-size: 1.3em; font-weight: normal;'>Exposure Time</div>")
-
-    exptime_widget = pn.widgets.FloatInput(
-        name="Exposure time [s]",
-        value=60.0,
-        width=FORM_WIDGET_WIDTH // 2,
-    )
-
-    def _on_exptime_change(event):
-        app_state.exposure_time = event.new
-
-    exptime_widget.param.watch(_on_exptime_change, "value")
-
-
     return pn.Column(
 
         night_duration_title,
@@ -768,11 +822,6 @@ def make_time_integration_tab(app_state):
         pn.Spacer(height=3),
 
         status,
-
-        pn.Spacer(height=10), divider_h, pn.Spacer(height=10),
-
-        exptime_title,
-        exptime_widget,
 
         sizing_mode="stretch_width",
     )

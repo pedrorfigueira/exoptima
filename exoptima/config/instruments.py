@@ -75,6 +75,10 @@ class Instrument:
     observatory: Observatory
     resolution: int                     # lambda / delta_lambda
     telescope_diameter: float           # primary mirror diameter
+
+    telescope_preset: float  # seconds
+    readout: float  # seconds
+
     rv_estimation: Optional[RVEstimation] = None
 
 # ------------------------------------------------------------------
@@ -165,6 +169,8 @@ INSTRUMENTS: Dict[str, Instrument] = {
         observatory=CALAR_ALTO,
         resolution=65000,
         telescope_diameter=1.23,
+        telescope_preset=60.0,
+        readout=30.0,
         rv_estimation=None,
     ),
 
@@ -173,6 +179,8 @@ INSTRUMENTS: Dict[str, Instrument] = {
         observatory=LA_SILLA,
         resolution=60000,
         telescope_diameter=1.2,
+        telescope_preset=60.0,
+        readout=30.0,
         rv_estimation=None,
     ),
 
@@ -181,6 +189,8 @@ INSTRUMENTS: Dict[str, Instrument] = {
         observatory=LA_SILLA,
         resolution=115000,
         telescope_diameter=3.6,
+        telescope_preset=60.0,
+        readout=30.0,
         rv_estimation=None,
     ),
 
@@ -189,6 +199,8 @@ INSTRUMENTS: Dict[str, Instrument] = {
         observatory=LA_PALMA,
         resolution=115000,
         telescope_diameter=3.58,
+        telescope_preset=60.0,
+        readout=30.0,
         rv_estimation=None,
     ),
 
@@ -197,6 +209,8 @@ INSTRUMENTS: Dict[str, Instrument] = {
         observatory=PARANAL,
         resolution=140000,
         telescope_diameter=8.2,
+        telescope_preset=180.0,
+        readout=40.0,
         rv_estimation=RVEstimation(
             ref_exptime=600.0,
             ref_mag=10.0,
@@ -220,6 +234,8 @@ INSTRUMENTS: Dict[str, Instrument] = {
         observatory=KECK_OBSERVATORY,
         telescope_diameter=10.0,
         resolution=98000,
+        telescope_preset=60.0,
+        readout=30.0,
         rv_estimation=None,
     ),
 
@@ -228,6 +244,8 @@ INSTRUMENTS: Dict[str, Instrument] = {
             observatory=CALAR_ALTO,
             resolution=94600,
             telescope_diameter=3.25,
+            telescope_preset=60.0,
+            readout=30.0,
             rv_estimation=None,
         ),
 
@@ -236,6 +254,8 @@ INSTRUMENTS: Dict[str, Instrument] = {
             observatory=LA_SILLA,
             resolution=75000,
             telescope_diameter=3.6,
+            telescope_preset=60.0,
+            readout=30.0,
             rv_estimation=None,
         ),
 
@@ -244,6 +264,8 @@ INSTRUMENTS: Dict[str, Instrument] = {
         observatory=LA_SILLA,
         resolution=100000,
         telescope_diameter=3.6,
+        telescope_preset=60.0,
+        readout=30.0,
         rv_estimation=None,
     ),
 

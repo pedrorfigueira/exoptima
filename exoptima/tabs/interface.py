@@ -6,7 +6,7 @@ from exoptima.core.state import AppState
 from exoptima.config.layout import BUTTON_WIDTH, BUTTON_HEIGHT
 
 from exoptima.tabs.controls import (
-    make_star_tab, make_instrument_tab, make_observing_conditions_tab, make_planet_rv_tab, make_time_integration_tab)
+    make_star_tab, make_instrument_tab, make_observing_conditions_tab, make_planet_rv_tab, make_time_tab)
 from exoptima.tabs.display import (
     make_daily_observability_tab, make_monthly_observability_tab, make_yearly_observability_tab,
     make_precision_tab)
@@ -264,7 +264,7 @@ def make_control_tabs(app_state: AppState):
         ("Star", make_star_tab(app_state)),
         ("Instrument", make_instrument_tab(app_state)),
         ("Conditions", make_observing_conditions_tab(app_state)),
-        ("Time & Integration", make_time_integration_tab(app_state)),
+        ("Observing Time", make_time_tab(app_state)),
         ("Planet parameters", make_planet_rv_tab(app_state)),
         sizing_mode="stretch_width",
     )

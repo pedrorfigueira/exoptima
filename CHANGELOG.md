@@ -33,9 +33,11 @@
   - V mag and SpTp default to None / G2 at start and with failed loads
   - if Vmag SpTp not defined other parameters are still loaded and observability computation is still possible 
 
-## v1.1.0 — 2026-03-18
+## v1.1.0 — 2026-03-20
 ### Added
 - Option to save plots in .png/.pdf and to save input conditions with the .txt summary.
+- Star B-V and Gaia DR3 ids, plus hyperlinks to Simbad and Gaia queries
+- Instrument+Telescope preset and readout overheads included
 
 ### Fixed
 - Cleaner and simpler messages in observability summaries 
