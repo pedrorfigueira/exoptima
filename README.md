@@ -61,18 +61,23 @@ The user interface is opened via a command-line tool that launches a Panel serve
 
 ### RV Precision Estimation Model
 
-EXOPTIMA estimates radial-velocity (RV) precision using a physically motivated scaling model anchored to reference values provided for the **ESPRESSO** spectrograph. For instruments without their own RV calibration model, results are scaled from ESPRESSO using telescope diameter, spectral resolution, exposure time, and target magnitude.
+EXOPTIMA estimates radial-velocity (RV) precision using a physically motivated scaling model anchored to instrument-specific reference values. For instruments without their own RV calibration model, results are scaled from the **ESPRESSO** spectrograph using telescope diameter, spectral resolution, exposure time, target magnitude, and observing conditions.
 
 #### Reference Model
 
-For each supported spectral type (G2, K2, K7, M2), ESPRESSO provides:
+For each supported spectral mask (**G2, K2, M2**), the RV precision model provides:
 
 * Reference signal-to-noise ratio: `SNR_ref`
 * Reference RV precision: `σ_RV,ref`
 
-calculated for a reference exposure time `t_ref` of 10 min and a reference magnitude `m_ref` of V=10.
+defined at:
 
-These values were defined for a seeing of 1.0" and an airmass of 1.3, which we consider to be standard conditions.
+* a reference exposure time `t_ref`
+* a reference magnitude `m_ref`
+* a reference airmass `X_ref`
+* a reference seeing `seeing_ref`
+
+These reference values are instrument-dependent and represent the calibration point from which EXOPTIMA scales.
 
 #### Signal-to-Noise Scaling
 
@@ -82,13 +87,36 @@ SNR ∝ D · √t · 10^(-0.2 · (m − `m_ref`))
 
 where:
 
-* ( D ) is the telescope diameter for the chosen instrument
+* ( D ) is the telescope diameter
 * ( t ) is the exposure time
 * ( m ) is the target magnitude
 
-In practice, for the input-provided parameters:
+In practice:
 
 SNR = `SNR_ref` · (D / `D_ref`) · √(t / `t_ref`) · 10^(-0.2 · (m − `m_ref`))
+
+#### Throughput Corrections
+
+EXOPTIMA additionally applies a first-order correction for observing conditions through a relative throughput factor:
+
+T = `T_airmass` × `T_fiber`
+
+where:
+
+* `T_airmass` accounts for atmospheric extinction as a function of **airmass** and **instrument central wavelength**
+* `T_fiber` accounts for **fiber coupling losses** as a function of **seeing** and **fiber diameter on sky**
+
+The effective seeing at the instrument wavelength is estimated from the user-provided seeing at 0.55 µm using a Kolmogorov scaling law:
+
+seeing(λ) ∝ λ^(-1/5)
+
+The final signal-to-noise ratio is then corrected relative to the instrument reference conditions:
+
+SNR = `SNR_ref,scaled` × √(T / `T_ref`)
+
+where `T_ref` is the throughput under the instrument reference airmass and seeing.
+
+This ensures that changes in airmass and seeing are applied **relative to the calibration point**, rather than as an absolute loss.
 
 #### RV Precision Scaling
 
@@ -111,17 +139,27 @@ Thus:
   * Spectral resolution ratio
   * Exposure time
   * Target magnitude
+  * Relative throughput correction from observing conditions
 
 #### Scope and Limitations
 
-This model assumes:
+This model is intended as a **first-order feasibility estimator**, not as a replacement for a full instrument exposure-time calculator.
+
+It assumes:
 
 * photon-noise–dominated performance
-* seeing conditions comparable to the fiber diameter, which should be the case by design
+* a centered point source
+* Gaussian image quality for fiber coupling
+* no detailed treatment of blaze response, tellurics, line density, detector systematics, or template mismatch
+* a single representative wavelength per instrument
 
-The goal is to provide **order-of-magnitude realistic estimates** suitable for feasibility assessment and instrument comparison, not detailed exposure-time calculator accuracy.
+As such, it is best suited for:
 
-The user is reminded graphically of the barrier of SNR < 30, where the approximations do not hold, and 30 < SNR < 50, where they are poor and should not be used either.
+* quick target feasibility assessment
+* approximate exposure-time planning
+* relative instrument comparison
+
+The user is reminded graphically of the barrier at **SNR < 30**, where the approximations become unreliable, and **30 < SNR < 50**, where results should be interpreted with caution.
 
 ## 📦 Installation
 
@@ -223,7 +261,7 @@ This project is distributed under the MIT License.
 
 ## 🙌 Acknowledgements
 
-Immense thanks to Luc Weber and Nicolas Buchschacher for all they thought me about observing tools through the years! 
+Immense thanks to Luc Weber and Nicolas Buchschacher for all they thought me about observing tools through the years!
 
 Pedro Figueira acknowledges financial support from the Severo Ochoa grant CEX2021-001131-S funded by MCIN/AEI/10.13039/501100011033. Pedro Figueira is also funded by the European Union (ERC, THIRSTEE, 101164189). Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Research Council. Neither the European Union nor the granting authority can be held responsible for them.
 
