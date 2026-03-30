@@ -16,42 +16,74 @@ _BASE_SIMBAD = Simbad()
 from exoptima.config.layout import FORM_WIDGET_WIDTH, BUTTON_WIDTH, BUTTON_HEIGHT
 from exoptima.config.instruments import INSTRUMENTS
 
-from exoptima.core.state import AppState, Star, PlanetParameters, ObservingConditions
+from exoptima.core.state import (
+    AppState, Star, PlanetParameters, ObservingConditions,
+    VALID_SPTYPES, VALID_NIGHT_DEFINITIONS)
 
 # ----- helper functions -----
 
+import re
+
 def map_simbad_sptype_to_model(sptype: str) -> str | None:
     """
-    Map a SIMBAD spectral type string to the nearest available model SpType.
+    Map a SIMBAD spectral type string to the nearest available RV mask.
+
+    Available masks
+    ---------------
+    ["G2", "K2", "M2"]
+
+    Rules
+    -----
+    - F, G  -> G2
+    - K     -> K2
+    - M     -> M2
+    - A/B/O and non-stellar / unsupported -> None
+
+    Parameters
+    ----------
+    sptype : str
+        SIMBAD spectral type string, e.g. "G8V", "K7III", "M3", "F9V"
 
     Returns
     -------
     str or None
-        One of ["G2", "K2", "K7", "M2"], or None if no match.
+        One of ["G2", "K2", "M2"], or None if unsupported.
     """
     if not sptype:
         return None
 
-    sptype = sptype.strip().upper()
+    s = str(sptype).strip().upper()
 
-    if sptype.startswith("G"):
+    # Extract leading spectral class and optional subtype digit
+    m = re.match(r"^([OBAFGKM])\s*([0-9]?)", s)
+    if not m:
+        return None
+
+    spec_class = m.group(1)
+    subtype = int(m.group(2)) if m.group(2).isdigit() else None
+
+    # Unsupported hot stars for RV masks
+    if spec_class in ("O", "B", "A"):
+        return None
+
+    # F stars are best approximated by G2
+    if spec_class == "F":
         return "G2"
 
-    if sptype.startswith("K"):
-        # Try to extract subtype number
-        for ch in sptype[1:]:
-            if ch.isdigit():
-                subtype = int(ch)
-                break
-        else:
-            subtype = 2  # default K
+    if spec_class == "G":
+        # Late G is closer to K2
+        if subtype is not None and subtype >= 8:
+            return "K2"
+        return "G2"
 
-        return "K2" if subtype <= 4 else "K7"
+    if spec_class == "K":
+        return "K2"
 
-    if sptype.startswith("M"):
+    if spec_class == "M":
         return "M2"
 
     return None
+
 
 def validate_coordinates(ra_str: str, dec_str: str) -> tuple[bool, str | None]:
     """
@@ -66,29 +98,6 @@ def validate_coordinates(ra_str: str, dec_str: str) -> tuple[bool, str | None]:
         return True, None
     except Exception as e:
         return False, str(e)
-
-
-def parse_min_time(value: str) -> u.Quantity:
-    """
-    Parse a minimum observing time string into an astropy Quantity.
-
-    Examples
-    --------
-    "1 min"  -> 1 * u.min
-    "30 min" -> 30 * u.min
-    "1 h"    -> 1 * u.hour
-    """
-    value = value.strip().lower()
-
-    number_str, unit_str = value.split()
-    number = float(number_str)
-
-    if unit_str.startswith("min"):
-        return number * u.min
-    if unit_str.startswith("h"):
-        return number * u.hour
-
-    raise ValueError(f"Unsupported time format: '{value}'")
 
 # Custom divider
 
@@ -147,8 +156,8 @@ def make_star_tab(app_state: AppState):
 
     sp_type = pn.widgets.Select(
         name="SpType (model)",
-        options=["G2", "K2", "K7", "M2"],
-        value="G2",
+        options=VALID_SPTYPES,
+        value=app_state.sp_type,
         width=FORM_WIDGET_WIDTH // 2,
     )
 
@@ -246,12 +255,14 @@ def make_star_tab(app_state: AppState):
                 # Spectral type
                 # ---------------------------
                 if "sp_type" in phot.colnames and phot["sp_type"][0]:
-                    sp = phot["sp_type"][0]
+                    sp = str(phot["sp_type"][0]).strip()
                     mapped = map_simbad_sptype_to_model(sp)
+
                     if mapped:
                         sp_type.value = mapped
-                        sp_msg = f"SpT → **{mapped}**"
-
+                        sp_msg = f"Simbad SpT: **{sp}** → Mask **{mapped}**"
+                    else:
+                        sp_msg = f"Simbad SpT: **{sp}** (no automatic mask mapping)"
                 # ---------------------------
                 # B–V color
                 # ---------------------------
@@ -326,7 +337,7 @@ def make_star_tab(app_state: AppState):
 
     exptime_widget = pn.widgets.FloatInput(
         name="Exposure time [s]",
-        value=60.0,
+        value=app_state.exposure_time,
         width=FORM_WIDGET_WIDTH // 2,
     )
 
@@ -371,7 +382,7 @@ def make_instrument_tab(app_state: AppState):
     instrument_select = pn.widgets.Select(
         name="Instrument",
         options=list(INSTRUMENTS.keys()),
-        value="EXOTICA",
+        value=app_state.instrument.name,
         width=int(FORM_WIDGET_WIDTH * 0.6),
         styles={"font-size": "1.3em"},
     )
@@ -385,15 +396,22 @@ def make_instrument_tab(app_state: AppState):
         sizing_mode="stretch_width",
     )
 
+    def _fmt_seconds(x: float) -> str:
+        return f"{int(x)} s" if float(x).is_integer() else f"{x:.1f} s"
+
     def update_instrument_info():
         inst = INSTRUMENTS[instrument_select.value]
+
         instrument_info.object = (
-                "| Observatory | Tel. Diameter | Resolution | Preset [s] | Readout [s] |\n"
-                "|:-----------:|:-------------:|:----------:|:----------:|:------------:|\n"
-                f"| {inst.observatory.name} | "
-                f"{inst.telescope_diameter:.1f} m | "
-                f"{inst.resolution:,}".replace(",", " ")
-                + f" | {inst.telescope_preset:.0f} | {inst.readout:.0f} |"
+            "| Observatory | Resolution | λ_eff | Fiber | Tel. Diameter | Preset | Readout |\n"
+            "|:-----------:|:----------:|:-----:|:-----:|:-------------:|:------:|:-------:|\n"
+            f"| {inst.observatory.name} | "
+            f"{inst.resolution:,}".replace(",", " ") + " | "
+            f"{inst.central_wavelength_um:.2f} µm | "
+            f"{inst.fiber_diameter_arcsec:.2f}\" | "
+            f"{inst.telescope_diameter:.1f} m | "
+            f"{inst.telescope_preset:.0f} s | "
+            f"{inst.readout:.0f} s |"
         )
 
     # --------------------------------------------------
@@ -518,24 +536,18 @@ def make_observing_conditions_tab(app_state: AppState):
 
     max_airmass = pn.widgets.FloatInput(
         name="Maximum airmass",
-        value=2.0,
+        value=app_state.conditions.max_airmass,
         start=1.0,
         end=3.0,
         step=0.1,
         width=FORM_WIDGET_WIDTH // 2,
     )
 
-    min_time = pn.widgets.Select(
-        name="Minimum time",
-        options=[
-            "1 min",
-            "30 min",
-            "1 h",
-            "2 h",
-            "3 h",
-            "5 h",
-        ],
-        value="1 h",
+    min_time = pn.widgets.FloatInput(
+        name="Minimum time [h]",
+        value=app_state.conditions.min_duration.to_value(u.hour),
+        start=0.0,
+        step=0.25,
         width=FORM_WIDGET_WIDTH // 2,
     )
 
@@ -545,7 +557,7 @@ def make_observing_conditions_tab(app_state: AppState):
 
     moon_separation = pn.widgets.FloatInput(
         name="Moon sep. [deg]",
-        value=30.0,
+        value=app_state.conditions.min_moon_separation,
         start=0.0,
         end=180.0,
         step=5.0,
@@ -554,11 +566,37 @@ def make_observing_conditions_tab(app_state: AppState):
 
     ignore_if_fli = pn.widgets.FloatInput(
         name="Ignore if FLI < ",
-        value=0.5,
+        value=app_state.conditions.ignore_moon_if_fli_above,
         start=0.0,
         end=1.0,
         step=0.05,
         width=FORM_WIDGET_WIDTH // 2,
+    )
+
+
+    # Instantaneous conditions
+
+    title_precision = pn.pane.HTML(
+        "<div style='font-size: 1.3em; font-weight: normal;'>RV Precision Conditions</div>"
+        "</strong>",
+    )
+
+    seeing = pn.widgets.FloatSlider(
+        name="Seeing @ 550 nm [arcsec]",
+        value=app_state.conditions.seeing_arcsec,
+        start=0.3,
+        end=3.0,
+        step=0.1,
+        width=FORM_WIDGET_WIDTH,
+    )
+
+    airmass_inst = pn.widgets.FloatSlider(
+        name="Airmass [ ]",
+        value=app_state.conditions.airmass_rv,
+        start=1.0,
+        end=3.0,
+        step=0.1,
+        width=FORM_WIDGET_WIDTH ,
     )
 
     # --------------------------------------------------
@@ -568,12 +606,21 @@ def make_observing_conditions_tab(app_state: AppState):
     def _update_conditions(*_):
         app_state.conditions = ObservingConditions(
             max_airmass=max_airmass.value,
-            min_duration=parse_min_time(min_time.value),
+            min_duration=min_time.value * u.hour,
             min_moon_separation=moon_separation.value,
             ignore_moon_if_fli_above=ignore_if_fli.value,
+            seeing_arcsec=seeing.value,
+            airmass_rv=airmass_inst.value,
         )
 
-    for w in (max_airmass, min_time, moon_separation, ignore_if_fli):
+    for w in (
+        max_airmass,
+        min_time,
+        moon_separation,
+        ignore_if_fli,
+        seeing,
+        airmass_inst,
+    ):
         w.param.watch(_update_conditions, "value")
 
     _update_conditions()
@@ -595,6 +642,10 @@ def make_observing_conditions_tab(app_state: AppState):
             ignore_if_fli,
             sizing_mode="stretch_width",
         ),
+
+        title_precision,
+        seeing,
+        airmass_inst,
         sizing_mode="stretch_width",
     )
 
@@ -605,11 +656,8 @@ def make_time_tab(app_state):
 
     # night duration
     night_duration_select = pn.widgets.Select(
-        options={
-            "sunset_sunrise": "Sunset to sunrise",
-            "nautical": "Nautical twilight",
-            "astronomical": "Astronomical twilight",
-        },
+        name="Night limits",
+        options=VALID_NIGHT_DEFINITIONS,
         value=app_state.night_definition,
         width=FORM_WIDGET_WIDTH,
     )
@@ -891,47 +939,13 @@ def make_planet_rv_tab(app_state: AppState):
     ):
         w.param.watch(_update_planet_params, "value")
 
-    # --------------------------------------------------
-    # Instantaneous conditions (disabled)
-    # --------------------------------------------------
-
-    title_precision = pn.pane.HTML(
-        "<div style='font-size: 1.3em; font-weight: normal;'>RV Precision Conditions</div>"
-        "<span style='color:#b00020; font-style:italic;'>"
-        "(Not implemented yet)"
-        "</span></strong>",
-    )
-
-    seeing = pn.widgets.FloatSlider(
-        name="Seeing (arcsec)",
-        start=0.3,
-        end=3.0,
-        value=1.0,
-        step=0.1,
-        width=int(FORM_WIDGET_WIDTH * 0.6),
-    )
-
-    airmass_inst = pn.widgets.FloatInput(
-        name="Airmass [ ]",
-        value=1.5,
-        start=1.0,
-        end=3.0,
-        step=0.1,
-        width=FORM_WIDGET_WIDTH // 2,
-    )
-
-    for widget in (seeing, airmass_inst):
-        widget.disabled = True
-
     return pn.Column(
         planet_title,
         pn.Row(planet_mass, orbital_period, stellar_mass),
         pn.Spacer(height=8),
         pn.Row(t0_input, total_duration_input, pn.Column(pn.Spacer(height=20), include_transit_switch)),
 
-        pn.Spacer(height=10), divider_h, pn.Spacer(height=10),
+        pn.Spacer(height=10), divider_h,
 
-        title_precision,
-        pn.Row(seeing, airmass_inst),
         sizing_mode="stretch_width",
     )

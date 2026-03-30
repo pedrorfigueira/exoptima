@@ -28,10 +28,10 @@
 
 ## v1.0.2 — 2026-01-30
 ### Fixed
-- Simbad query: 
+- Simbad query:
   - verbose on what is successfully loaded and what fails;
   - V mag and SpTp default to None / G2 at start and with failed loads
-  - if Vmag SpTp not defined other parameters are still loaded and observability computation is still possible 
+  - if Vmag SpTp not defined other parameters are still loaded and observability computation is still possible
 
 ## v1.1.0 — 2026-03-20
 ### Added
@@ -40,4 +40,14 @@
 - Instrument+Telescope preset and readout overheads included
 
 ### Fixed
-- Cleaner and simpler messages in observability summaries 
+- Cleaner and simpler messages in observability summaries
+
+## v1.2.0 — 2026-03-30
+### Added
+- Implementation of instantaneous airmass and seeing from Conditions tab.
+- definition of on-sky fiber size, central wavelength, and extinction for instruments
+- computation of chromatic fiber losses and adjustment of S/N and precision
+
+### Changed
+- default constrains defined in config/computation.py
+- usage of three mask values G2/K2/M2 for simplicity

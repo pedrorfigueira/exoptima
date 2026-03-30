@@ -57,27 +57,35 @@ class RVEstimation:
     Reference RV precision and SNR values for a spectrograph.
 
     All values are defined at:
-        - reference_exptime (seconds)
-        - reference_mag (V magnitude)
+        - ref_exptime (seconds)
+        - ref_mag (V magnitude)
+        - ref_airmass
+        - ref_seeing_arcsec (at 0.55 µm reference seeing)
 
-    Dictionaries are keyed by spectral type: "G2", "K2", "K7", "M2"
+    Dictionaries are keyed by spectral type: "G2", "K2", "M2"
     """
 
-    ref_exptime: float   # seconds
-    ref_mag: float       # V magnitude
+    ref_exptime: float          # seconds
+    ref_mag: float              # V magnitude
+    ref_airmass: float          # reference airmass
+    ref_seeing_arcsec: float    # seeing at 0.55 µm
 
     ref_snr: Dict[str, Optional[float]]
     ref_rv_precision: Dict[str, Optional[float]]  # m/s
+
 
 @dataclass(frozen=True)
 class Instrument:
     name: str
     observatory: Observatory
-    resolution: int                     # lambda / delta_lambda
-    telescope_diameter: float           # primary mirror diameter
 
-    telescope_preset: float  # seconds
-    readout: float  # seconds
+    resolution: int                     # lambda / delta_lambda
+    central_wavelength_um: float
+    fiber_diameter_arcsec: float	    # on-sky fiber diameter
+
+    telescope_diameter: float           # primary mirror diameter
+    telescope_preset: float             # seconds
+    readout: float                      # seconds
 
     rv_estimation: Optional[RVEstimation] = None
 
@@ -168,6 +176,8 @@ INSTRUMENTS: Dict[str, Instrument] = {
         name="EXOTICA",
         observatory=CALAR_ALTO,
         resolution=65000,
+        central_wavelength_um=0.55,
+        fiber_diameter_arcsec=1.5,
         telescope_diameter=1.23,
         telescope_preset=60.0,
         readout=30.0,
@@ -178,6 +188,8 @@ INSTRUMENTS: Dict[str, Instrument] = {
         name="CORALIE",
         observatory=LA_SILLA,
         resolution=60000,
+        central_wavelength_um=0.55,
+        fiber_diameter_arcsec=2.0,
         telescope_diameter=1.2,
         telescope_preset=60.0,
         readout=30.0,
@@ -188,6 +200,8 @@ INSTRUMENTS: Dict[str, Instrument] = {
         name="HARPS",
         observatory=LA_SILLA,
         resolution=115000,
+        central_wavelength_um=0.55,
+        fiber_diameter_arcsec=1.0,
         telescope_diameter=3.6,
         telescope_preset=60.0,
         readout=30.0,
@@ -198,6 +212,8 @@ INSTRUMENTS: Dict[str, Instrument] = {
         name="HARPS-N",
         observatory=LA_PALMA,
         resolution=115000,
+        central_wavelength_um=0.55,
+        fiber_diameter_arcsec=1.0,
         telescope_diameter=3.58,
         telescope_preset=60.0,
         readout=30.0,
@@ -208,23 +224,26 @@ INSTRUMENTS: Dict[str, Instrument] = {
         name="ESPRESSO",
         observatory=PARANAL,
         resolution=140000,
+        central_wavelength_um=0.55,
+        fiber_diameter_arcsec=1.0,
         telescope_diameter=8.2,
         telescope_preset=180.0,
         readout=40.0,
+        # Reference values based on ESPRESSO ETC / HR11 setup
         rv_estimation=RVEstimation(
-            ref_exptime=600.0,
-            ref_mag=10.0,
+            ref_exptime=60.0,
+            ref_mag=7.0,
+            ref_airmass=1.0,
+            ref_seeing_arcsec=1.0,
             ref_snr={
-                "G2": 112.456,
-                "K2": 113.19,
-                "K7": 114.972,
-                "M2": 110.771,
+                "G2": 162.946,
+                "K2": 163.992,
+                "M2": 160.547,
             },
             ref_rv_precision={
-                "G2": 0.53,
-                "K2": 0.53,
-                "K7": 0.52,
-                "M2": 0.54,
+                "G2": 0.37,
+                "K2": 0.37,
+                "M2": 0.37,
             },
         )
     ),
@@ -232,8 +251,10 @@ INSTRUMENTS: Dict[str, Instrument] = {
     "KPF" : Instrument(
         name="KPF",
         observatory=KECK_OBSERVATORY,
-        telescope_diameter=10.0,
         resolution=98000,
+        central_wavelength_um=0.55,
+        fiber_diameter_arcsec=0.9,
+        telescope_diameter=10.0,
         telescope_preset=60.0,
         readout=30.0,
         rv_estimation=None,
@@ -243,6 +264,8 @@ INSTRUMENTS: Dict[str, Instrument] = {
             name="CARMENES-VIS",
             observatory=CALAR_ALTO,
             resolution=94600,
+            central_wavelength_um=0.75,
+            fiber_diameter_arcsec=1.5,
             telescope_diameter=3.25,
             telescope_preset=60.0,
             readout=30.0,
@@ -253,6 +276,8 @@ INSTRUMENTS: Dict[str, Instrument] = {
             name="NIRPS-HA",
             observatory=LA_SILLA,
             resolution=75000,
+            central_wavelength_um=1.10,
+            fiber_diameter_arcsec=0.4,
             telescope_diameter=3.6,
             telescope_preset=60.0,
             readout=30.0,
@@ -263,6 +288,8 @@ INSTRUMENTS: Dict[str, Instrument] = {
         name="NIRPS-HE",
         observatory=LA_SILLA,
         resolution=100000,
+        central_wavelength_um=1.10,
+        fiber_diameter_arcsec=0.9,
         telescope_diameter=3.6,
         telescope_preset=60.0,
         readout=30.0,

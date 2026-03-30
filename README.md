@@ -1,8 +1,8 @@
-# `exoptima` - **EXOTICA Observation Preparation Tool for Instrumentation and Mission Analysis** 
+# `exoptima` - **EXOTICA Observation Preparation Tool for Instrumentation and Mission Analysis**
 
 <img src="exoptima/assets/exoptima-logo.svg" alt="EXOPTIMA logo" width="250" align="right">
 
-`exoptima` is a browser-based interface for planning astronomical observations developed as support for the **EXOTICA** project. 
+`exoptima` is a browser-based interface for planning astronomical observations developed as support for the **EXOTICA** project.
 
 It streamlines observability computations, using SIMBAD id queries, observatory and instrument databases, and typical constraints used for RV studies. These can be done not only for a night but visualized over a month or the whole year. It also allows calculation of transit visibility. It uses simple scaling laws to estimate the RV precision attained on different spectrographs, including **EXOTICA**.
 
@@ -170,7 +170,7 @@ After installation, the software can be launched from the command line
 exoptima
 ```
 
-and the interface opens in your browser, displaying a series of controls (left) and visualization panes (right). 
+and the interface opens in your browser, displaying a series of controls (left) and visualization panes (right).
 
 ## 📚 Folder Structure
 
@@ -213,9 +213,8 @@ exoptima/
 
 ## TODO
 - [ ] test precision estimation with ETCs
-- [ ] create orbit sampling tab
-- [ ] allow ingestion of input via files
-- [ ] include average / user-defined seeing and airmass penalty (?)
+- [ ] allow ingestion of input via config files
+- [ ] allow multiple stellar input in a queue
 - [ ] Implement monthly weather-loss statistics
 
 ## 📄 License
@@ -223,6 +222,8 @@ exoptima/
 This project is distributed under the MIT License.
 
 ## 🙌 Acknowledgements
+
+Immense thanks to Luc Weber and Nicolas Buchschacher for all they thought me about observing tools through the years! 
 
 Pedro Figueira acknowledges financial support from the Severo Ochoa grant CEX2021-001131-S funded by MCIN/AEI/10.13039/501100011033. Pedro Figueira is also funded by the European Union (ERC, THIRSTEE, 101164189). Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Research Council. Neither the European Union nor the granting authority can be held responsible for them.
 

@@ -238,8 +238,8 @@ def make_daily_observability_tab(app_state: AppState):
 
         {extra_stats}
 
-        **Night:**  
-        Beginning: **{obs.night_start.iso[11:16]} UT**; End: **{obs.night_end.iso[11:16]} UT**  
+        **Night:**
+        Beginning: **{obs.night_start.iso[11:16]} UT**; End: **{obs.night_end.iso[11:16]} UT**
         Total night duration: **{obs.night_duration.to_value(u.hour):.2f} h**
         """
 
@@ -450,23 +450,23 @@ def make_monthly_observability_tab(app_state: AppState):
                 effective_hours = obs_hours.sum() * p
 
                 weather_line = f"""
-                
-        - **Considering yearly-averaged weather losses:**  
+
+        - **Considering yearly-averaged weather losses:**
         **{effective_nights:.1f} effective nights**, **{effective_hours:.1f} h total observable time**
         """
 
             return f"""
         ### Summary for Monthly Observability
-        
-        - **Observable nights:** **{n_obs} / {n_total}**  
-          **Mean observable time per night:** **{mean_hours:.2f} h**  
-          **Total observable time:** **{total_hours:.2f} h**  
+
+        - **Observable nights:** **{n_obs} / {n_total}**
+          **Mean observable time per night:** **{mean_hours:.2f} h**
+          **Total observable time:** **{total_hours:.2f} h**
           ({first_date} → {last_date})
-        
-        - **Maximum observable time:**  
+
+        - **Maximum observable time:**
           **{max_hours:.2f} h** on **{max_date}**
-        
-        - **Minimum observable time:**  
+
+        - **Minimum observable time:**
           **{min_hours:.2f} h** on **{min_date}**
         {weather_line}
         """
@@ -698,7 +698,7 @@ def make_yearly_observability_tab(app_state: AppState):
 
                 weather_line = f"""
 
-        - **Considering yearly-averaged weather losses:**  
+        - **Considering yearly-averaged weather losses:**
           **{effective_nights:.1f} effective nights**, **{effective_hours:.1f} h total observable time**
         """
 
@@ -710,10 +710,10 @@ def make_yearly_observability_tab(app_state: AppState):
         - **Mean observable time per night:** **{mean_hours:.2f} h**
         ({first_date} → {last_date})
 
-        - **Maximum observable time:**  
+        - **Maximum observable time:**
         **{max_hours:.2f} h** on **{max_date}**
 
-        - **Minimum observable time:**  
+        - **Minimum observable time:**
         **{min_hours:.2f} h** on **{min_date}**
         {weather_line}
         """
@@ -756,6 +756,11 @@ def make_precision_tab(app_state: AppState):
         snr_req = req["snr"]
         rv_req = req["rv_precision"]
         scaled_from = req.get("scaled_from", "—")
+        throughput = req.get("throughput")
+        T_airmass = req.get("airmass_transmission")
+        T_fiber = req.get("fiber_coupling")
+        k_ext = req.get("extinction_coeff")
+        seeing_eff = req.get("seeing_eff")
 
         # --------------------------------------------------
         # Figure layout: 2x2 grid
@@ -882,6 +887,34 @@ def make_precision_tab(app_state: AppState):
             f"- **RV precision at {t_req/60:.1f} min:** **{rv_req:.2f} m/s**",
             f"- **Scaled from:** **{scaled_from}**",
         ]
+
+        # --------------------------------------------------
+        # Throughput diagnostics
+        # --------------------------------------------------
+
+        if throughput is not None:
+            stats_lines.append("")
+            stats_lines.append("#### Throughput corrections")
+
+            if T_airmass is not None and T_fiber is not None:
+                stats_lines.append(
+                    f"- **Total throughput factor:** **{100*throughput:.1f}%** "
+                    f"(Airmass transmission: **{100*T_airmass:.1f}%** × "
+                    f"Fiber coupling: **{100*T_fiber:.1f}%**)"
+                )
+            elif T_airmass is not None:
+                stats_lines.append(
+                    f"- **Airmass transmission:** **{100*T_airmass:.1f}%**"
+                )
+            elif T_fiber is not None:
+                stats_lines.append(
+                    f"- **Fiber coupling:** **{100*T_fiber:.1f}%**"
+                )
+
+            if seeing_eff is not None:
+                stats_lines.append(
+                    f'- **Effective seeing at λ_eff:** **{seeing_eff:.2f}"**'
+                )
 
         if K_cases is not None:
             stats_lines.append("")

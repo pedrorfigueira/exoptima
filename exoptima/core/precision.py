@@ -10,6 +10,139 @@ from astropy.constants import G
 
 from exoptima.config.instruments import Instrument, INSTRUMENTS
 
+# --------------------------------------------------
+# Throughput models
+# --------------------------------------------------
+
+def fiber_encircled_energy(
+    seeing_fwhm_arcsec: float,
+    fiber_diameter_arcsec: float,
+) -> float:
+    """
+    Fraction of light entering a centered circular fiber
+    assuming a Gaussian PSF.
+    """
+    if seeing_fwhm_arcsec <= 0 or fiber_diameter_arcsec <= 0:
+        return 1.0
+
+    sigma = seeing_fwhm_arcsec / (2.0 * np.sqrt(2.0 * np.log(2.0)))
+    radius = fiber_diameter_arcsec / 2.0
+
+    return 1.0 - np.exp(-(radius**2) / (2.0 * sigma**2))
+
+
+def extinction_coeff_from_wavelength(wavelength_um: float) -> float:
+    """
+    Approximate broadband atmospheric extinction coefficient [per airmass]
+    as a function of representative wavelength.
+
+    Values are rough, site-agnostic, and intended for first-order exposure/SNR scaling.
+    """
+
+    # Tabulated anchor points: (wavelength [um], extinction coefficient [airmass^-1])
+    wl_grid = np.array([0.40, 0.55, 0.70, 0.90, 1.10, 1.25, 1.65])
+    k_grid  = np.array([0.22, 0.12, 0.08, 0.06, 0.05, 0.06, 0.05])
+
+    # Clamp outside range
+    wavelength_um = np.clip(wavelength_um, wl_grid.min(), wl_grid.max())
+
+    return float(np.interp(wavelength_um, wl_grid, k_grid))
+
+
+def airmass_transmission(airmass: float, extinction_coeff: float) -> float:
+    """
+    Atmospheric transmission loss relative to zenith.
+
+    Parameters
+    ----------
+    airmass : float
+    extinction_coeff : float
+        Broadband extinction coefficient in mag / airmass
+
+    Returns
+    -------
+    float
+        Relative transmission factor
+    """
+    if airmass <= 1.0:
+        return 1.0
+
+    return 10.0 ** (-0.4 * extinction_coeff * (airmass - 1.0))
+
+
+def seeing_at_wavelength(
+    seeing_ref_arcsec: float,
+    wavelength_um: float,
+    reference_wavelength_um: float = 0.55,
+) -> float:
+    """
+    Scale seeing from a reference wavelength using Kolmogorov turbulence:
+
+        seeing ∝ λ^(-1/5)
+
+    Parameters
+    ----------
+    seeing_ref_arcsec : float
+        Seeing at reference wavelength (typically 0.55 µm)
+    wavelength_um : float
+        Instrument central wavelength
+    reference_wavelength_um : float
+        Reference wavelength of input seeing
+
+    Returns
+    -------
+    float
+        Effective seeing at the instrument wavelength
+    """
+    if seeing_ref_arcsec <= 0:
+        return seeing_ref_arcsec
+
+    return seeing_ref_arcsec * (wavelength_um / reference_wavelength_um) ** (-0.2)
+
+
+def throughput_factor(
+    *,
+    instrument,
+    airmass: float | None,
+    seeing_ref_arcsec: float | None,
+) -> tuple[float, float | None, float | None, float | None]:
+    """
+    Compute total throughput factor = atmospheric transmission × fiber coupling.
+
+    Parameters
+    ----------
+    instrument : Instrument
+    airmass : float or None
+    seeing_ref_arcsec : float or None
+        Seeing defined at 0.55 µm.
+
+    Returns
+    -------
+    throughput, T_airmass, T_fiber, seeing_eff
+    """
+    T_airmass = 1.0
+    T_fiber = 1.0
+    seeing_eff = None
+
+    # Airmass term
+    if airmass is not None:
+        k_ext = extinction_coeff_from_wavelength(instrument.central_wavelength_um)
+        T_airmass = airmass_transmission(airmass, k_ext)
+
+    # Fiber term
+    fiber_diam = getattr(instrument, "fiber_diameter_arcsec", None)
+    if fiber_diam is not None and seeing_ref_arcsec is not None:
+        seeing_eff = seeing_at_wavelength(
+            seeing_ref_arcsec=seeing_ref_arcsec,
+            wavelength_um=instrument.central_wavelength_um,
+        )
+        T_fiber = fiber_encircled_energy(seeing_eff, fiber_diam)
+
+    throughput = max(T_airmass * T_fiber, 1e-6)
+
+    return throughput, T_airmass, T_fiber, seeing_eff
+
+
 def recompute_precision(app_state):
     star = app_state.star
     inst = app_state.instrument
@@ -51,6 +184,7 @@ def recompute_precision(app_state):
             spectral_type=star.sptype,
             vmag=star.vmag,
             exposure_time=t,
+            conditions=app_state.conditions,
         )
         if r is None:
             snr_vals.append(np.nan)
@@ -70,6 +204,7 @@ def recompute_precision(app_state):
         spectral_type=star.sptype,
         vmag=star.vmag,
         exposure_time=t_req,
+        conditions=app_state.conditions,
     )
 
     if req is None:
@@ -102,6 +237,7 @@ def recompute_precision(app_state):
             spectral_type=star.sptype,
             vmag=star.vmag,
             K_value=K_cases["optimistic"],
+            conditions=app_state.conditions,
         )
 
         sig_real = compute_detection_significance_curve(
@@ -110,6 +246,7 @@ def recompute_precision(app_state):
             spectral_type=star.sptype,
             vmag=star.vmag,
             K_value=K_cases["realistic"],
+            conditions=app_state.conditions,
         )
 
         detectability = {
@@ -138,6 +275,7 @@ def compute_rv_precision(
     spectral_type: str,
     vmag: float,
     exposure_time: float,  # seconds
+    conditions=None,
 ) -> Optional[Dict]:
     """
     Compute RV precision and SNR.
@@ -204,10 +342,40 @@ def compute_rv_precision(
     mag_factor = 10.0 ** (-0.2 * (vmag - m_ref))
     diameter_factor = D / D_ref
 
+    # Base SNR (no losses)
     snr = snr_ref * diameter_factor * time_factor * mag_factor
 
-    if snr <= 0.0:
-        return None
+    # --------------------------------------------------
+    # Throughput corrections (relative to reference conditions)
+    # --------------------------------------------------
+
+    k_ext = extinction_coeff_from_wavelength(instrument.central_wavelength_um)
+
+    # User conditions
+    user_airmass = getattr(conditions, "airmass_rv", None) if conditions is not None else None
+    user_seeing = getattr(conditions, "seeing_arcsec", None) if conditions is not None else None
+
+    throughput_user, T_airmass, T_fiber, seeing_eff = throughput_factor(
+        instrument=instrument,
+        airmass=user_airmass,
+        seeing_ref_arcsec=user_seeing,
+    )
+
+    # Reference conditions
+    ref_airmass = model.ref_airmass
+    ref_seeing = model.ref_seeing_arcsec
+
+    throughput_ref, T_airmass_ref, T_fiber_ref, seeing_eff_ref = throughput_factor(
+        instrument=base_instrument,
+        airmass=ref_airmass,
+        seeing_ref_arcsec=ref_seeing,
+    )
+
+    # Relative correction only
+    throughput_ratio = throughput_user / max(throughput_ref, 1e-6)
+
+    # Apply to SNR (sqrt law)
+    snr *= math.sqrt(throughput_ratio)
 
     # --------------------------------------------------
     # RV scaling
@@ -226,6 +394,16 @@ def compute_rv_precision(
         "snr_ref": snr_ref,
         "rv_ref": rv_ref,
         "scaled_from": base_instrument.name,
+        "throughput": throughput_user,
+        "throughput_ref": throughput_ref,
+        "throughput_ratio": throughput_ratio,
+        "airmass_transmission": T_airmass,
+        "fiber_coupling": T_fiber,
+        "airmass_transmission_ref": T_airmass_ref,
+        "fiber_coupling_ref": T_fiber_ref,
+        "extinction_coeff": k_ext,
+        "seeing_eff": seeing_eff,
+        "seeing_eff_ref": seeing_eff_ref,
     }
 
 
@@ -307,6 +485,7 @@ def compute_detection_significance_curve(
     spectral_type: str,
     vmag: float,
     K_value: float | None,
+    conditions=None,
 ) -> np.ndarray | None:
     """
     Compute detection significance curve: K / sigma(t)
@@ -325,6 +504,7 @@ def compute_detection_significance_curve(
             spectral_type=spectral_type,
             vmag=vmag,
             exposure_time=t,
+            conditions=conditions,
         )
 
         if res is None:
@@ -345,4 +525,3 @@ def compute_detection_significance_curve(
         return None
 
     return sig_vals
-
