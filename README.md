@@ -250,7 +250,8 @@ exoptima/
 ```
 
 ## TODO
-- [ ] test precision estimation with ETCs
+- [ ] improve notes on observability (states unobservable during afternoon, when it is at night)
+- [ ] test precision estimation with ETCs - dudge factor needed at least for CORALIE
 - [ ] allow ingestion of input via config files
 - [ ] allow multiple stellar input in a queue
 - [ ] Implement monthly weather-loss statistics
