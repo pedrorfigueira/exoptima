@@ -2,9 +2,9 @@
 
 <img src="exoptima/assets/exoptima-logo.svg" alt="EXOPTIMA logo" width="250" align="right">
 
-`exoptima` is a browser-based interface for planning astronomical observations developed as support for the **EXOTICA** project.
+`exoptima` is a browser-based interface for planning astronomical observations for high-precision radial velocities.
 
-It streamlines observability computations, using SIMBAD id queries, observatory and instrument databases, and typical constraints used for RV studies. These can be done not only for a night but visualized over a month or the whole year. It also allows calculation of transit visibility. It uses simple scaling laws to estimate the RV precision attained on different spectrographs, including **EXOTICA**.
+It streamlines observability computations, using SIMBAD id queries, observatory and instrument databases, and typical constraints used for RV studies. These can be done not only for a night but visualized over a month or the whole year. It also allows calculation of transit visibility. It uses simple scaling laws to estimate the RV precision attained on different spectrographs, including the proposed **EXOTICA** spectrograph.
 
 The user interface is opened via a command-line tool that launches a Panel server and runs entirely on Python.
 
