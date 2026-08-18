@@ -238,12 +238,15 @@ def make_header(app_state: AppState):
     # Layout
     # ---------------------------------
     title = pn.Column(
-        pn.pane.HTML("<h2> EXOPTIMA <br> an <i>EXOTICA</i> tool </h2>"),
+        pn.pane.HTML("<h2> EXOPTIMA </h2>"),
     )
 
     return pn.Row(
         pn.pane.SVG(OPT_ICON_SVG, width=80, height=80),
-        title,
+        pn.Column(
+            pn.Spacer(height=10),
+            title,
+        ),
         pn.Spacer(width=20),
         pn.Column(
             pn.Spacer(height=10),

@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use("Agg") # Non-interactive backend for Panel/web rendering
+
 import panel as pn
 pn.extension()
 

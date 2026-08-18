@@ -1,4 +1,4 @@
-# `exoptima` - **EXOTICA Observation Preparation Tool for Instrumentation and Mission Analysis**
+# `exoptima` - **Exoplanets Observation Preparation Tool for Instrumentation and Mission Analysis**
 
 <img src="exoptima/assets/exoptima-logo.svg" alt="EXOPTIMA logo" width="250" align="right">
 

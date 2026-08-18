@@ -51,3 +51,7 @@
 ### Changed
 - default constrains defined in config/computation.py
 - usage of three mask values G2/K2/M2 for simplicity
+
+## v1.2.1 — 2026-08-18
+### Fixed
+- Issues with matplotlib backend on MacOS and get_moon() deprecation fix (issues #1, #2)

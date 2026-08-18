@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, date
 
 import astropy.units as u
 from astropy.time import Time
-from astropy.coordinates import SkyCoord, get_moon
+from astropy.coordinates import SkyCoord, get_body
 from astroplan.moon import moon_illumination
 
 from exoptima.config.computation import YEAR_OBS_NIGHTSTEP
@@ -132,7 +132,7 @@ def compute_single_night_observability(
     # Moon constraints
     # ----------------------------
 
-    moon = get_moon(times, observer.location)
+    moon = get_body("moon", times, observer.location)
     moon_sep = target.separation(moon)
     fli = moon_illumination(times)
 
