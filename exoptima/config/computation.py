@@ -19,5 +19,8 @@ DEFAULT_AIRMASS_RV = 1.2
 # default night limit defimition
 DEFAULT_NIGHT_DEFINITION = "Nautical twilight"
 
+# default zenithal avoidance zone for alt-az telescopes
+DEFAULT_ZENITH_AVOIDANCE_DEG = 3
+
 # step in nights used in "Year" observability mode
 YEAR_OBS_NIGHTSTEP = 7

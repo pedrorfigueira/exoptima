@@ -12,8 +12,12 @@ from astropy.time import Time
 from astropy.coordinates import SkyCoord
 
 from exoptima.core.state import AppState, ObservabilityResult, MultiNightObservability
-from exoptima.config.layout import DISPLAY_MAIN_FRACTION, MONTH_XLABEL_STEP
+from exoptima.config.layout import (
+    DISPLAY_MAIN_FRACTION,
+    MONTH_XLABEL_STEP,
+)
 from exoptima.tabs.export import make_save_button
+from exoptima.config.computation import DEFAULT_ZENITH_AVOIDANCE_DEG
 
 # Custom divider
 
@@ -29,9 +33,14 @@ def make_display_tab(
     header_pane,
     plot_save_filename="plot.pdf",
     stats_save_filename="summary.txt",
+    app_state=None,
 ):
-    plot_view = make_save_button(plot_pane, plot_save_filename, header_pane)
-    summary_view = make_save_button(stats_pane, stats_save_filename, header_pane)
+    plot_view = make_save_button(
+        plot_pane, plot_save_filename, header_pane, app_state
+    )
+    summary_view = make_save_button(
+        stats_pane, stats_save_filename, header_pane, app_state
+    )
 
     return pn.Column(
         pn.Column(plot_view,
@@ -189,22 +198,57 @@ def make_daily_observability_tab(app_state: AppState):
         plot_pane.object = fig
         plt.close(fig)
 
-        def _instant_badge(is_ok: bool, t_ref: Time) -> tuple[str, str]:
+        def _instant_badge(
+            is_ok_now: bool,
+            is_ok_tonight: bool,
+            t_ref: Time,
+        ) -> tuple[str, str]:
+
             dt_str = t_ref.iso[:16]  # YYYY-MM-DD HH:MM
-            if is_ok:
+
+            if is_ok_now:
                 return (
                     f"✔ Observable at {dt_str} UTC",
                     "#2e7d32",
                 )
-            else:
+
+            if is_ok_tonight:
                 return (
-                    f"✖ Not observable at {dt_str} UTC",
-                    "#b00020",
+                    "◷ Observable tonight",
+                    "#2e7d32",
                 )
+
+            return (
+                "✖ Not observable tonight",
+                "#b00020",
+            )
 
         def _make_daily_stats_table(app_state: AppState, hours: int, minutes: int) -> str:
             obs = app_state.observability
-            verdict_text, verdict_color = _instant_badge(is_observable_now, t_ref)
+            verdict_text, verdict_color = _instant_badge(
+                is_observable_now,
+                obs.is_observable,
+                t_ref,
+            )
+
+            # Zenith avoidance
+            zenith_avoidance_line = ""
+
+            inst = app_state.instrument
+            if inst is not None and inst.altaz_mount:
+                max_altitude = 90.0 - DEFAULT_ZENITH_AVOIDANCE_DEG
+
+                night_mask = (times >= obs.night_start) & (times <= obs.night_end)
+
+                passes_zenith_zone = np.any(
+                    night_mask & (alt > max_altitude)
+                )
+
+                if passes_zenith_zone:
+                    zenith_avoidance_line = (
+                        f"- The target passes through the **zenith-avoidance zone** "
+                        f"(altitude > {max_altitude:.1f}°) during the night."
+                    )
 
             # Indices where target is observable
             idx = np.where(mask)[0]
@@ -236,6 +280,8 @@ def make_daily_observability_tab(app_state: AppState):
 
         **Total observable time:** **{hours} h {minutes} min** {time_window_str}
 
+        {zenith_avoidance_line}
+
         {extra_stats}
 
         **Night:**
@@ -265,6 +311,7 @@ def make_daily_observability_tab(app_state: AppState):
         app_state.header_pane,
         "NightObs_plot.pdf",
         "NightObs_summary.txt",
+        app_state,
     )
 
 #####
@@ -481,6 +528,7 @@ def make_monthly_observability_tab(app_state: AppState):
         app_state.header_pane,
         "MonthObs_plot.pdf",
         "MonthObs_summary.txt",
+        app_state,
     )
 
 def make_yearly_observability_tab(app_state: AppState):
@@ -728,6 +776,7 @@ def make_yearly_observability_tab(app_state: AppState):
         app_state.header_pane,
         "YearObs_plot.pdf",
         "YearObs_summary.txt",
+        app_state,
     )
 
 def make_precision_tab(app_state: AppState):
@@ -938,4 +987,5 @@ def make_precision_tab(app_state: AppState):
         app_state.header_pane,
         "RVPrecision_plot.pdf",
         "RVPrecision_summary.txt",
+        app_state,
     )

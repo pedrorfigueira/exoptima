@@ -4,6 +4,12 @@ import panel as pn
 from pathlib import Path
 
 
+def _export_target_name(app_state) -> str:
+    if app_state.star is None or not app_state.star.name:
+        return "TARGET"
+    return "".join(app_state.star.name.split())
+
+
 def _extract_header_text(layout):
     """
     Extract ONLY Markdown panes from header.
@@ -130,7 +136,7 @@ def _format_markdown_as_report(md_text: str) -> str:
     return "\n".join(out).strip()
 
 
-def make_save_button(pane, filename, header_pane=None):
+def make_save_button(pane, filename, header_pane=None, app_state=None):
 
     # ----------------------------
     # Plot export (PDF / PNG)
@@ -157,7 +163,11 @@ def make_save_button(pane, filename, header_pane=None):
                 return
 
             fmt = format_select.value
-            fig.savefig(f"{base}.{fmt}", bbox_inches="tight", dpi=300)
+
+            target = _export_target_name(app_state)
+            output_filename = f"{target}_{base}.{fmt}"
+
+            fig.savefig(output_filename, bbox_inches="tight", dpi=300)
 
         export_btn.on_click(_export)
 
@@ -201,8 +211,12 @@ def make_save_button(pane, filename, header_pane=None):
                 if header_text:
                     text = header_text + "\n\n" + text
 
-            Path(filename).write_text(text)
+            base = Path(filename).stem
+            target = _export_target_name(app_state)
+            output_filename = f"{target}_{base}.txt"
 
+            Path(output_filename).write_text(text)
+            
         export_btn.on_click(_export)
 
         return pn.Row(
@@ -212,4 +226,3 @@ def make_save_button(pane, filename, header_pane=None):
             align="start",
             sizing_mode="stretch_width",
         )
-

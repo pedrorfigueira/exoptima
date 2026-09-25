@@ -55,3 +55,12 @@
 ## v1.2.1 — 2026-08-18
 ### Fixed
 - Issues with matplotlib backend on MacOS and get_moon() deprecation fix (issues #1, #2)
+
+## v1.3.0 — 2026-09-25
+### Added
+- Iarget name is included in filenames of Observability plots and text summaries.
+- Inclusion of AltAz info in Instrument class and zenith avoidance zone on observability.
+- time offset controls improved
+
+### Changed
+- In the summaries, distinction between "not observable tonight" and "observable tonight"

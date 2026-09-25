@@ -250,8 +250,7 @@ exoptima/
 ```
 
 ## TODO
-- [ ] improve notes on observability (states unobservable during afternoon, when it is at night)
-- [ ] test precision estimation with ETCs - dudge factor needed at least for CORALIE
+- [ ] test precision estimation with ETCs - fudge factor needed at least for CORALIE
 - [ ] allow ingestion of input via config files
 - [ ] allow multiple stellar input in a queue
 - [ ] Implement monthly weather-loss statistics
@@ -262,7 +261,7 @@ This project is distributed under the MIT License.
 
 ## 🙌 Acknowledgements
 
-Immense thanks to Luc Weber and Nicolas Buchschacher for all they thought me about observing tools through the years!
+**Immense thanks to Luc Weber and Nicolas Buchschacher for all they thought me about observing tools through the years!**
 
 Pedro Figueira acknowledges financial support from the Severo Ochoa grant CEX2021-001131-S funded by MCIN/AEI/10.13039/501100011033. Pedro Figueira is also funded by the European Union (ERC, THIRSTEE, 101164189). Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Research Council. Neither the European Union nor the granting authority can be held responsible for them.
 

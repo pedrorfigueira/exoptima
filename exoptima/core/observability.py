@@ -9,7 +9,7 @@ from astropy.time import Time
 from astropy.coordinates import SkyCoord, get_body
 from astroplan.moon import moon_illumination
 
-from exoptima.config.computation import YEAR_OBS_NIGHTSTEP
+from exoptima.config.computation import YEAR_OBS_NIGHTSTEP, DEFAULT_ZENITH_AVOIDANCE_DEG
 from exoptima.config.layout import DAYTIME_INTERVAL, DAY_OBS_NSAMPLES
 from exoptima.core.state import (
     AppState,
@@ -59,6 +59,7 @@ def compute_single_night_observability(
     ref_time: Time,
     conditions,
     night_definition: str,
+    instrument,
     planet_params: PlanetParameters | None = None,
 ) -> ObservabilityResult:
     """
@@ -145,12 +146,22 @@ def compute_single_night_observability(
         moon_mask = moon_sep_mask
 
     # ----------------------------
+    # Zenith avoidance for Alt-Az telescopes
+    # ----------------------------
+
+    if instrument.altaz_mount:
+        max_altitude = (90.0 - DEFAULT_ZENITH_AVOIDANCE_DEG) * u.deg
+    else:
+        max_altitude = 90.0 * u.deg
+
+    # ----------------------------
     # Global mask
     # ----------------------------
 
     mask = (
         night_mask
         & (altitude >= min_altitude)
+        & (altitude <= max_altitude)
         & moon_mask
         & np.isfinite(altitude)
     )
@@ -221,6 +232,7 @@ def get_or_compute_night(
     ref_time: Time,
     conditions,
     night_definition: str,
+    instrument,
     planet_params: PlanetParameters | None,
     night_cache: dict[date, NightObservability],
 ) -> NightObservability:
@@ -234,6 +246,7 @@ def get_or_compute_night(
         ref_time=ref_time,
         conditions=conditions,
         night_definition=night_definition,
+        instrument=instrument,
         planet_params=planet_params,
     )
 
@@ -254,6 +267,7 @@ def compute_night_observability(
     target,
     ref_time: Time,
     conditions,
+    instrument,
     night_definition: str,
     planet_params: PlanetParameters | None = None,
 ) -> NightObservability:
@@ -266,6 +280,7 @@ def compute_night_observability(
         target=target,
         ref_time=ref_time,
         conditions=conditions,
+        instrument=instrument,
         night_definition=night_definition,
         planet_params=planet_params,
     )
@@ -284,6 +299,7 @@ def compute_multi_night_observability(
     target,
     ref_times: Iterable[Time],
     conditions,
+    instrument,
     night_definition: str,
     planet_params: PlanetParameters | None,
     night_cache: dict[date, NightObservability],
@@ -300,6 +316,7 @@ def compute_multi_night_observability(
             target=target,
             ref_time=t_ref,
             conditions=conditions,
+            instrument=instrument,
             night_definition=night_definition,
             planet_params=planet_params,
             night_cache=night_cache,
@@ -335,6 +352,7 @@ def recompute_observability(app_state: AppState) -> ObservabilityResult | None:
         ref_time=app_state.reference_time,
         conditions=app_state.conditions,
         night_definition=app_state.night_definition,
+        instrument=app_state.instrument,
         planet_params=app_state.planet_params,
     )
 
@@ -371,6 +389,7 @@ def recompute_multi_night_observability_driver(
         target=target,
         ref_times=ref_times,
         conditions=app_state.conditions,
+        instrument=app_state.instrument,
         night_definition=app_state.night_definition,
         planet_params=app_state.planet_params,
         night_cache=app_state.night_cache,

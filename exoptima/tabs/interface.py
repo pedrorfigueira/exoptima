@@ -1,6 +1,9 @@
 # full interface, putting together the header, control, and display
 import panel as pn
 
+from bokeh.io import curdoc
+from bokeh.models import CustomJS
+
 from exoptima.core.state import AppState
 
 from exoptima.config.layout import BUTTON_WIDTH, BUTTON_HEIGHT

@@ -87,6 +87,8 @@ class Instrument:
     telescope_preset: float             # seconds
     readout: float                      # seconds
 
+    altaz_mount: bool = True            # mount type
+
     rv_estimation: Optional[RVEstimation] = None
 
 # ------------------------------------------------------------------
@@ -181,6 +183,7 @@ INSTRUMENTS: Dict[str, Instrument] = {
         telescope_diameter=1.23,
         telescope_preset=60.0,
         readout=30.0,
+        altaz_mount=False,          # German equatorial
         rv_estimation=None,
     ),
 
@@ -193,6 +196,7 @@ INSTRUMENTS: Dict[str, Instrument] = {
         telescope_diameter=1.2,
         telescope_preset=60.0,
         readout=30.0,
+        altaz_mount=True,
         rv_estimation=None,
     ),
 
@@ -205,6 +209,7 @@ INSTRUMENTS: Dict[str, Instrument] = {
         telescope_diameter=3.6,
         telescope_preset=60.0,
         readout=30.0,
+        altaz_mount=False,
         rv_estimation=None,
     ),
 
@@ -217,6 +222,7 @@ INSTRUMENTS: Dict[str, Instrument] = {
         telescope_diameter=3.58,
         telescope_preset=60.0,
         readout=30.0,
+        altaz_mount=True,
         rv_estimation=None,
     ),
 
@@ -229,6 +235,7 @@ INSTRUMENTS: Dict[str, Instrument] = {
         telescope_diameter=8.2,
         telescope_preset=180.0,
         readout=40.0,
+        altaz_mount=True,
         # Reference values based on ESPRESSO ETC / HR11 setup
         rv_estimation=RVEstimation(
             ref_exptime=60.0,
@@ -257,6 +264,7 @@ INSTRUMENTS: Dict[str, Instrument] = {
         telescope_diameter=10.0,
         telescope_preset=60.0,
         readout=30.0,
+        altaz_mount=True,
         rv_estimation=None,
     ),
 
@@ -269,6 +277,7 @@ INSTRUMENTS: Dict[str, Instrument] = {
             telescope_diameter=3.25,
             telescope_preset=60.0,
             readout=30.0,
+            altaz_mount=False,
             rv_estimation=None,
         ),
 
@@ -281,6 +290,7 @@ INSTRUMENTS: Dict[str, Instrument] = {
             telescope_diameter=3.6,
             telescope_preset=60.0,
             readout=30.0,
+            altaz_mount=False,
             rv_estimation=None,
         ),
 
@@ -293,6 +303,7 @@ INSTRUMENTS: Dict[str, Instrument] = {
         telescope_diameter=3.6,
         telescope_preset=60.0,
         readout=30.0,
+        altaz_mount=False,
         rv_estimation=None,
     ),
 

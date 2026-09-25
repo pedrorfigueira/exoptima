@@ -402,16 +402,19 @@ def make_instrument_tab(app_state: AppState):
     def update_instrument_info():
         inst = INSTRUMENTS[instrument_select.value]
 
+        altaz = "Yes" if inst.altaz_mount else "No"
+
         instrument_info.object = (
-            "| Observatory | Resolution | λ_eff | Fiber | Tel. Diameter | Preset | Readout |\n"
-            "|:-----------:|:----------:|:-----:|:-----:|:-------------:|:------:|:-------:|\n"
+            "| Observatory | Tel. Diameter | Alt-Az | Fiber | Resolution | λ_eff | Preset | Readout |\n"
+            "|:-----------:|:-------------:|:------:|:-----:|:----------:|:-----:|:------:|:-------:|\n"
             f"| {inst.observatory.name} | "
+            f"{inst.telescope_diameter:.1f} m | "
+            f"{altaz} | "
+            f"{inst.fiber_diameter_arcsec:.2f}\" | "
             f"{inst.resolution:,}".replace(",", " ") + " | "
             f"{inst.central_wavelength_um:.2f} µm | "
-            f"{inst.fiber_diameter_arcsec:.2f}\" | "
-            f"{inst.telescope_diameter:.1f} m | "
-            f"{inst.telescope_preset:.0f} s | "
-            f"{inst.readout:.0f} s |"
+            f"{_fmt_seconds(inst.telescope_preset)} | "
+            f"{_fmt_seconds(inst.readout)} |"
         )
 
     # --------------------------------------------------
@@ -696,9 +699,19 @@ def make_time_tab(app_state):
         disabled=True,
     )
 
-    # Increment controls
-    increment = pn.widgets.Select(options=["+", "-"], value="+", width=FORM_WIDGET_WIDTH // 4)
-    step = pn.widgets.Select(options=["1h", "1day", "1month", "1year"], value="1day", width=FORM_WIDGET_WIDTH // 2)
+    # Time offset controls
+    offset_value = pn.widgets.FloatInput(
+        name="Offset",
+        value=1.0,
+        width=FORM_WIDGET_WIDTH // 3,
+    )
+
+    offset_unit = pn.widgets.Select(
+        name="Unit",
+        options=["day", "week", "month", "year"],
+        value="day",
+        width=FORM_WIDGET_WIDTH // 2,
+    )
 
     update_btn = pn.widgets.Button(
         name="Update time",
@@ -724,21 +737,21 @@ def make_time_tab(app_state):
 
     def _apply_offset():
         delta = {
-            "1h": 1 * u.hour,
-            "1day": 1 * u.day,
-            "1month": 30 * u.day,
-            "1year": 365 * u.day,
-        }[step.value]
-
-        if increment.value == "-":
-            delta = -delta
+            "day": offset_value.value * u.day,
+            "week": offset_value.value * u.week,
+            "month": offset_value.value * 30 * u.day,
+            "year": offset_value.value * 365 * u.day,
+        }[offset_unit.value]
 
         app_state.reference_time += delta
+
         time_input.value = app_state.reference_time.to_datetime().strftime(
             "%Y-%m-%d %H:%M"
         )
 
-        status.object = f"Reference time set to **{app_state.reference_time.iso[:16]} UTC**"
+        status.object = (
+            f"Reference time set to **{app_state.reference_time.iso[:16]} UTC**"
+        )
 
     # ----------------------------
     # Callbacks
@@ -845,9 +858,9 @@ def make_time_tab(app_state):
     # Hide local-time controls by default
     local_time_row.visible = False
 
-    increment_row = pn.Row(
-        increment,
-        step,
+    time_offset_row = pn.Row(
+        offset_value,
+        offset_unit,
         update_btn,
         sizing_mode="stretch_width",
     )
@@ -866,7 +879,7 @@ def make_time_tab(app_state):
         local_time_row,
         pn.Spacer(height=10),
 
-        increment_row,
+        time_offset_row,
         pn.Spacer(height=3),
 
         status,

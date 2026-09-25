@@ -9,6 +9,7 @@ build/
 # editor artifacts
 .idea/
 
-# Summaries created
+# Summaries and plots created
 *.pdf
 *.txt
+*.png
