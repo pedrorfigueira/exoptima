@@ -42,14 +42,28 @@ def make_display_tab(
         stats_pane, stats_save_filename, header_pane, app_state
     )
 
+    plot_section = pn.Column(
+        plot_view,
+        sizing_mode="stretch_both",
+        styles={
+            "flex": f"0 0 {DISPLAY_MAIN_FRACTION * 100:.0f}%",
+            "min-height": "0",
+        },
+    )
+
+    summary_section = pn.Column(
+        summary_view,
+        sizing_mode="stretch_width",
+        styles={
+            "flex": f"0 0 {(1. - DISPLAY_MAIN_FRACTION) * 100:.0f}%",
+            "min-height": "0",
+        },
+    )
+
     return pn.Column(
-        pn.Column(plot_view,
-                  styles={"flex": f"0 0 {DISPLAY_MAIN_FRACTION * 100:.0f}%"},
-                  ),
+        plot_section,
         divider_h,
-        pn.Column(summary_view,
-                  styles={"flex": f"0 0 {(1. - DISPLAY_MAIN_FRACTION) * 100:.0f}%"},
-                  ),
+        summary_section,
         sizing_mode="stretch_both",
     )
 
@@ -931,9 +945,14 @@ def make_precision_tab(app_state: AppState):
         # Statistics pane
         # --------------------------------------------------
 
+        conditions = app_state.conditions
+
         stats_lines = [
-            f"- **S/N at {t_req/60:.1f} min:** **{snr_req:.2f}**",
-            f"- **RV precision at {t_req/60:.1f} min:** **{rv_req:.2f} m/s**",
+            "#### Observing conditions",
+            f'- **Airmass:** **{conditions.airmass_rv:.2f}**',
+            f'- **Seeing @ 550 nm:** **{conditions.seeing_arcsec:.2f}"**',
+            f"- **S/N at {t_req / 60:.1f} min:** **{snr_req:.2f}**",
+            f"- **RV precision at {t_req / 60:.1f} min:** **{rv_req:.2f} m/s**",
             f"- **Scaled from:** **{scaled_from}**",
         ]
 

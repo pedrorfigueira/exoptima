@@ -9,7 +9,7 @@ from astropy import units as u
 # ------------------------------------------------------------------
 
 # Fraction of horizontal space taken by the left (controls) panel
-CONTROLS_PANEL_FRACTION = 0.3       # left section
+CONTROLS_PANEL_FRACTION = 0.25       # left section
 
 # Vertical spacing
 HEADER_SPACING = 10

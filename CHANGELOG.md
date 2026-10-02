@@ -64,3 +64,11 @@
 
 ### Changed
 - In the summaries, distinction between "not observable tonight" and "observable tonight"
+
+## v1.3.1 — 2026-10-02
+### Added
+- Observing conditions are included in the RV precision summary.
+
+### Fixed
+- Handling of missing values in SIMBAD queries.
+- More robust display scheme, now respecting predefined screen ratio values.

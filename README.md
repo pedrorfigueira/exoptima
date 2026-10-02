@@ -16,7 +16,6 @@ The user interface is opened via a command-line tool that launches a Panel serve
 * Single-night, monthly, and yearly observability computation
 * Constraints on Airmass and Moon properties, suitable for spectroscopy
 
-
 ### 🏔️ Observatory & Instrument Awareness
 
 * Built-in database of instruments with:
@@ -186,7 +185,6 @@ and run
 ```
 pip install .
 ```
-To install in editable / developer mode use the flag `-e`; this enables live code editing without having to reinstall.
 
 ## 🔧 Dependencies
 
@@ -250,9 +248,12 @@ exoptima/
 ```
 
 ## TODO
+- [ ] change axis in Monthly/Yearly visibility, add on-plot info 
+- [ ] define workdirs for IO 
+- [ ] allow target input via config files
 - [ ] test precision estimation with ETCs - fudge factor needed at least for CORALIE
-- [ ] allow ingestion of input via config files
 - [ ] allow multiple stellar input in a queue
+- [ ] include schedulling
 - [ ] Implement monthly weather-loss statistics
 
 ## 📄 License

@@ -182,6 +182,7 @@ def make_save_button(pane, filename, header_pane=None, app_state=None):
             pn.Spacer(height=4),
             pane,
             sizing_mode="stretch_both",
+            styles={"min-height": "0"},
         )
 
     # ----------------------------

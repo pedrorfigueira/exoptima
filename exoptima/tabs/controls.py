@@ -1,6 +1,7 @@
 # Control (input) section and tab definitions
 
 import panel as pn
+import numpy as np
 
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -247,9 +248,16 @@ def make_star_tab(app_state: AppState):
                 # ---------------------------
                 # V magnitude
                 # ---------------------------
-                if "V" in phot.colnames and phot["V"][0] is not None:
-                    vmag.value = round(float(phot["V"][0]), 2)
-                    vmag_msg = "V mag loaded"
+                if "V" in phot.colnames:
+                    vmag_value = phot["V"][0]
+
+                    if (
+                            vmag_value is not None
+                            and not np.ma.is_masked(vmag_value)
+                            and np.isfinite(float(vmag_value))
+                    ):
+                        vmag.value = round(float(vmag_value), 2)
+                        vmag_msg = "V mag loaded"
 
                 # ---------------------------
                 # Spectral type
@@ -263,17 +271,26 @@ def make_star_tab(app_state: AppState):
                         sp_msg = f"Simbad SpT: **{sp}** → Mask **{mapped}**"
                     else:
                         sp_msg = f"Simbad SpT: **{sp}** (no automatic mask mapping)"
+
                 # ---------------------------
                 # B–V color
                 # ---------------------------
-                if (
-                        "B" in phot.colnames and phot["B"][0] is not None
-                        and "V" in phot.colnames and phot["V"][0] is not None
-                ):
-                    bmag = float(phot["B"][0])
-                    vmag_val = float(phot["V"][0])
-                    bv = bmag - vmag_val
-                    bv_msg = f"B–V = **{bv:.2f}**"
+                if "B" in phot.colnames and "V" in phot.colnames:
+                    bmag_value = phot["B"][0]
+                    vmag_value = phot["V"][0]
+
+                    if (
+                            bmag_value is not None
+                            and vmag_value is not None
+                            and not np.ma.is_masked(bmag_value)
+                            and not np.ma.is_masked(vmag_value)
+                            and np.isfinite(float(bmag_value))
+                            and np.isfinite(float(vmag_value))
+                    ):
+                        bmag = float(bmag_value)
+                        vmag_val = float(vmag_value)
+                        bv = bmag - vmag_val
+                        bv_msg = f"B–V = **{bv:.2f}**"
 
                 # ---------------------------
                 # Gaia DR3 ID (from identifiers)
@@ -862,7 +879,6 @@ def make_time_tab(app_state):
         offset_value,
         offset_unit,
         update_btn,
-        sizing_mode="stretch_width",
     )
 
     return pn.Column(

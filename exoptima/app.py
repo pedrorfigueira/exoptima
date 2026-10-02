@@ -4,6 +4,8 @@ matplotlib.use("Agg") # Non-interactive backend for Panel/web rendering
 import panel as pn
 pn.extension()
 
+pn.config.respect_explicit_sizing = True
+
 from astropy import units as u
 
 from exoptima.config.layout import HEADER_SPACING, CONTROLS_PANEL_FRACTION
@@ -70,7 +72,7 @@ def create_app():
             left_panel,
             divider_v,
             right_panel,
-            sizing_mode="stretch_width",
+            sizing_mode="stretch_both",
         ),
         sizing_mode="stretch_both",
     )
