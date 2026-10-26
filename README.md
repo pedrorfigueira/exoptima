@@ -233,7 +233,8 @@ exoptima/
     │   ├── __init__.py
     │   ├── instruments.py
     │   ├── computation.py
-    │   └── layout.py
+    │   ├── layout.py
+    │   └── example_input.json
     │
     ├── tabs/
     │   ├── __init__.py
@@ -248,12 +249,12 @@ exoptima/
 ```
 
 ## TODO
-- [ ] change axis in Monthly/Yearly visibility, add on-plot info 
-- [ ] define workdirs for IO 
-- [ ] allow target input via config files
+- [ ] create schedule mode vs (current) planning mode 
+- [ ] create top menu (row) for manipulation of common parameters, lower row for logs and info
+- [ ] allow independent star conditions editing 
+- [ ] implement multiple stellar manipulation on a queue
+- [ ] represent visually open windows and current windows 
 - [ ] test precision estimation with ETCs - fudge factor needed at least for CORALIE
-- [ ] allow multiple stellar input in a queue
-- [ ] include schedulling
 - [ ] Implement monthly weather-loss statistics
 
 ## 📄 License

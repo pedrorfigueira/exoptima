@@ -1,0 +1,30 @@
+{
+    "format_version": 1,
+    "reference_time_utc": "2026-10-26T14:57:42.058",
+    "inputs": {
+        "star_name": "test star",
+        "ra": "",
+        "dec": "",
+        "vmag": 6.66,
+        "sp_type": "G2",
+        "exposure_time": 60.0,
+        "instrument": "EXOTICA",
+        "weather_losses_mode": "None",
+        "max_airmass": 2.0,
+        "min_duration_hours": 1.0,
+        "min_moon_separation": 30.0,
+        "ignore_moon_if_fli_above": 0.05,
+        "seeing_arcsec": 0.8,
+        "airmass_rv": 1.2,
+        "night_definition": "Nautical twilight",
+        "timezone": "Local Time of Observatory",
+        "time_offset": 1.0,
+        "time_offset_unit": "day",
+        "planet_mass_mjup": null,
+        "orbital_period_days": null,
+        "stellar_mass_msun": 1.0,
+        "t0_jd": null,
+        "total_observation_duration_hours": null,
+        "include_transit_in_observability": false
+    }
+}

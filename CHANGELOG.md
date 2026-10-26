@@ -72,3 +72,11 @@
 ### Fixed
 - Handling of missing values in SIMBAD queries.
 - More robust display scheme, now respecting predefined screen ratio values.
+
+## v1.4.0 — 2026-10-26
+### Added
+- Save and Load input via .json files, controlled in the new Input/Output tab
+- Workdir and file naming controllable by user
+
+### Fixed
+- Monthly and Yearly observability plots show beginning of night on top, and mark it graphically

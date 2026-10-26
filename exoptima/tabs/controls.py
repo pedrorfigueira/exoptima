@@ -2,7 +2,9 @@
 
 import panel as pn
 import numpy as np
+import json
 
+from pathlib import Path
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -343,6 +345,8 @@ def make_star_tab(app_state: AppState):
     ra.param.watch(_on_edit, "value")
     dec.param.watch(_on_edit, "value")
     vmag.param.watch(_on_edit, "value")
+    star_name.param.watch(_on_edit, "value")
+    sp_type.param.watch(_on_edit, "value")
 
     # =================================================
     # Exposure time
@@ -362,6 +366,17 @@ def make_star_tab(app_state: AppState):
         app_state.exposure_time = event.new
 
     exptime_widget.param.watch(_on_exptime_change, "value")
+
+    # update values from input file
+    app_state._input_widgets = getattr(app_state, "_input_widgets", {})
+    app_state._input_widgets.update({
+        "star_name": star_name,
+        "ra": ra,
+        "dec": dec,
+        "vmag": vmag,
+        "sp_type": sp_type,
+        "exposure_time": exptime_widget,
+    })
 
     # =================================================
     # Layout
@@ -528,6 +543,12 @@ def make_instrument_tab(app_state: AppState):
     update_instrument_info()
     update_weather_info()
 
+    # Update values from file
+    app_state._input_widgets.update({
+        "instrument": instrument_select,
+        "weather_losses_mode": weather_losses_mode,
+    })
+
     # --------------------------------------------------
     # Layout
     # --------------------------------------------------
@@ -644,6 +665,16 @@ def make_observing_conditions_tab(app_state: AppState):
         w.param.watch(_update_conditions, "value")
 
     _update_conditions()
+
+    # update values from input file
+    app_state._input_widgets.update({
+        "max_airmass": max_airmass,
+        "min_duration_hours": min_time,
+        "min_moon_separation": moon_separation,
+        "ignore_moon_if_fli_above": ignore_if_fli,
+        "seeing_arcsec": seeing,
+        "airmass_rv": airmass_inst,
+    })
 
     # --------------------------------------------------
     # Layout
@@ -881,6 +912,16 @@ def make_time_tab(app_state):
         update_btn,
     )
 
+    # update values form input file
+    app_state._input_widgets.update({
+        "night_definition": night_duration_select,
+        "time_mode": mode_select,
+        "time_input": time_input,
+        "timezone": timezone_select,
+        "time_offset": offset_value,
+        "time_offset_unit": offset_unit,
+    })
+
     return pn.Column(
 
         night_duration_title,
@@ -968,6 +1009,16 @@ def make_planet_rv_tab(app_state: AppState):
     ):
         w.param.watch(_update_planet_params, "value")
 
+    # update values from input file
+    app_state._input_widgets.update({
+        "planet_mass_mjup": planet_mass,
+        "orbital_period_days": orbital_period,
+        "stellar_mass_msun": stellar_mass,
+        "t0_jd": t0_input,
+        "total_observation_duration_hours": total_duration_input,
+        "include_transit_in_observability": include_transit_switch,
+    })
+
     return pn.Column(
         planet_title,
         pn.Row(planet_mass, orbital_period, stellar_mass),
@@ -976,5 +1027,230 @@ def make_planet_rv_tab(app_state: AppState):
 
         pn.Spacer(height=10), divider_h,
 
+        sizing_mode="stretch_width",
+    )
+
+
+def make_input_output_tab(app_state: AppState):
+    """Create a tab for saving and loading input configurations."""
+
+    # --------------------------------------------------
+    # File controls
+    # --------------------------------------------------
+
+    default_dir = Path(__file__).resolve().parents[1] / "config"
+
+    working_dir = pn.widgets.TextInput(
+        name="Working Dir",
+        value=str(default_dir),
+        sizing_mode="stretch_width",
+    )
+
+    file_names = pn.widgets.TextInput(
+        name="File Names",
+        value="example_input.json",
+        sizing_mode="stretch_width",
+    )
+
+    save_button = pn.widgets.Button(
+        name="Save Input",
+        button_type="primary",
+        width=BUTTON_WIDTH,
+        height=BUTTON_HEIGHT,
+    )
+
+    load_button = pn.widgets.Button(
+        name="Load Input",
+        button_type="success",
+        width=BUTTON_WIDTH,
+        height=BUTTON_HEIGHT,
+    )
+
+    # --------------------------------------------------
+    # Log
+    # --------------------------------------------------
+
+    log_pane = pn.pane.Markdown(
+        "No file operations yet.",
+        sizing_mode="stretch_width",
+    )
+
+    log_entries = []
+
+    def add_log(message: str):
+        """Add a timestamped entry to the log."""
+        timestamp = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S")
+
+        log_entries.insert(0, f"- `{timestamp}` — {message}")
+        del log_entries[100:]
+
+        log_pane.object = "\n".join(log_entries)
+
+    # --------------------------------------------------
+    # Helpers
+    # --------------------------------------------------
+
+    def get_file_path() -> Path:
+        """Resolve the configuration file path."""
+        directory = Path(working_dir.value).expanduser()
+
+        filename = file_names.value.strip()
+        if not filename:
+            raise ValueError("Please provide a filename.")
+
+        path = Path(filename).expanduser()
+
+        # If a relative filename includes a directory, preserve it.
+        if not path.is_absolute():
+            path = directory / path
+
+        if path.suffix.lower() != ".json":
+            path = path.with_suffix(".json")
+
+        return path
+
+    def get_widget_values() -> dict:
+        """Collect the current input values from the registered widgets."""
+        widgets = getattr(app_state, "_input_widgets", {})
+
+        # The reference time is stored separately in UTC.
+        excluded = {"time_mode", "time_input"}
+
+        values = {
+            key: widget.value
+            for key, widget in widgets.items()
+            if key not in excluded
+        }
+
+        return values
+
+    # --------------------------------------------------
+    # Save
+    # --------------------------------------------------
+
+    def save_input(event=None):
+        try:
+            path = get_file_path()
+            path.parent.mkdir(parents=True, exist_ok=True)
+
+            data = {
+                "format_version": 1,
+                "reference_time_utc": app_state.reference_time.utc.isot,
+                "inputs": get_widget_values(),
+            }
+
+            with path.open("w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4, ensure_ascii=False)
+
+            add_log(f"✅ Saved input to `{path}`")
+
+        except Exception as exc:
+            add_log(f"❌ Save failed: `{type(exc).__name__}: {exc}`")
+
+    # --------------------------------------------------
+    # Load
+    # --------------------------------------------------
+
+    def load_input(event=None):
+        try:
+            path = get_file_path()
+
+            if not path.is_file():
+                raise FileNotFoundError(f"File not found: {path}")
+
+            with path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            if not isinstance(data, dict) or "inputs" not in data:
+                raise ValueError("Invalid configuration file: missing 'inputs'.")
+
+            widgets = getattr(app_state, "_input_widgets", {})
+            values = data["inputs"]
+
+            if not isinstance(values, dict):
+                raise ValueError("'inputs' must be a JSON object.")
+
+            # Restore the reference time before switching the mode to UTC.
+            # Switching to "Now" would otherwise replace the loaded time.
+            if "reference_time_utc" in data:
+                app_state.reference_time = Time(
+                    data["reference_time_utc"],
+                    format="isot",
+                    scale="utc",
+                )
+
+            # Update regular controls first. Their existing callbacks
+            # propagate the new values into AppState.
+            for key, value in values.items():
+                if key in widgets and key not in {"time_mode", "time_input"}:
+                    widgets[key].value = value
+
+            # Restore the displayed time and use UTC mode so the loaded
+            # reference time is preserved instead of reset to the current time.
+            if "reference_time_utc" in data:
+                time_input = widgets.get("time_input")
+                mode_select = widgets.get("time_mode")
+
+                if time_input is not None:
+                    time_input.value = (
+                        app_state.reference_time.utc.to_datetime()
+                        .strftime("%Y-%m-%d %H:%M")
+                    )
+
+                if mode_select is not None:
+                    mode_select.value = "Set Time in UTC"
+
+            # Refresh the state flags used to enable the compute buttons.
+            star_widgets = widgets
+            ra_widget = star_widgets.get("ra")
+            dec_widget = star_widgets.get("dec")
+            vmag_widget = star_widgets.get("vmag")
+
+            if ra_widget is not None and dec_widget is not None:
+                valid, _ = validate_coordinates(
+                    ra_widget.value,
+                    dec_widget.value,
+                )
+                app_state.star_coords_valid = valid
+
+            if vmag_widget is not None:
+                app_state.star_vmag_defined = vmag_widget.value is not None
+
+            add_log(f"✅ Loaded input from `{path}`")
+
+            working_dir.value = str(path.parent.resolve())
+            file_names.value = path.name
+
+        except Exception as exc:
+            add_log(f"❌ Load failed: `{type(exc).__name__}: {exc}`")
+
+    save_button.on_click(save_input)
+    load_button.on_click(load_input)
+
+    # --------------------------------------------------
+    # Layout
+    # --------------------------------------------------
+
+    return pn.Column(
+        pn.pane.HTML(
+            "<div style='font-size: 1.3em; font-weight: normal;'>"
+            "Input / Output"
+            "</div>"
+        ),
+        working_dir,
+        file_names,
+        pn.Row(save_button, load_button),
+        pn.Spacer(height=10),
+        divider_h,
+        pn.Spacer(height=10),
+        pn.pane.HTML(
+            "<div style='font-size: 1.2em; font-weight: normal;'>Log</div>"
+        ),
+        pn.Column(
+            log_pane,
+            height=250,
+            scroll=True,
+            sizing_mode="stretch_width",
+        ),
         sizing_mode="stretch_width",
     )

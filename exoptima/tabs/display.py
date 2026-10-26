@@ -404,8 +404,33 @@ def make_monthly_observability_tab(app_state: AppState):
                     zorder=3,
                 )
 
+        # Time increases downwards, with a 2-hour margin before and after each night
+        ax.set_ylim(max_night + 1, -1)
 
-        ax.set_ylim(0, max_night)
+        # Show ticks from 0 h onwards, hiding the -2 h tick
+        ax.set_yticks(np.arange(0, max_night + 2, 2))
+
+        # Mark the start of the night
+        ax.axhline(0, color="grey", linewidth=0.8, alpha=0.3, zorder=2)
+
+        # Label night start inside the plot
+        ax.text(
+            0.5,
+            0,
+            "Night starts",
+            transform=ax.get_yaxis_transform(),
+            ha="center",
+            va="bottom",
+            fontsize=7,
+            color="grey",
+            bbox=dict(
+                boxstyle="round,pad=0.3",
+                facecolor="white",
+                edgecolor="grey",
+                alpha=0.8,
+            ),
+            zorder=5,
+        )
 
         # X-axis: nights and their labeling
         x_positions = np.arange(len(monthly.nights))
@@ -611,8 +636,33 @@ def make_yearly_observability_tab(app_state: AppState):
                     zorder=3,
                 )
 
-        ax.set_xlim(-0.5, len(yearly.nights) - 0.5)
-        ax.set_ylim(0, max_night)
+        # Time increases downwards, with a 2-hour margin before and after each night
+        ax.set_ylim(max_night + 1, -1)
+
+        # Show ticks from 0 h onwards, hiding the -2 h tick
+        ax.set_yticks(np.arange(0, max_night + 2, 2))
+
+        # Mark the start of the night
+        ax.axhline(0, color="grey", linewidth=0.8, alpha=0.3, zorder=2)
+
+        # Label night start inside the plot
+        ax.text(
+            0.5,
+            0,
+            "Night starts",
+            transform=ax.get_yaxis_transform(),
+            ha="center",
+            va="bottom",
+            fontsize=7,
+            color="grey",
+            bbox=dict(
+                boxstyle="round,pad=0.3",
+                facecolor="white",
+                edgecolor="grey",
+                alpha=0.8,
+            ),
+            zorder=5,
+        )
 
         # X axis labeling (sparse, yearly scale)
         x_positions = np.arange(len(yearly.nights))
