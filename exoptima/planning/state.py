@@ -10,6 +10,7 @@ import numpy as np
 from astropy import units as u
 from astropy.time import Time
 
+from exoptima.config.computation import VALID_NIGHT_DEFINITIONS
 from exoptima.config.instruments import Instrument, INSTRUMENTS
 
 # ----------------------------------------
@@ -45,7 +46,7 @@ class ObservingConditions:
 
     # Moon-related constraints
     min_moon_separation: float           # degrees
-    ignore_moon_if_fli_above: float      # fraction (0–1)
+    ignore_moon_if_fli_below: float      # fraction (0–1)
 
     # instantaneous seeing and airmass
     seeing_arcsec: float
@@ -73,18 +74,6 @@ class NightObservability:
 @dataclass(frozen=True)
 class MultiNightObservability:
     nights: Sequence[NightObservability]
-
-# ----------------------------------------
-#   Valid entris for string inputs
-# ----------------------------------------
-
-VALID_SPTYPES = ["G2", "K2", "M2"]
-
-VALID_NIGHT_DEFINITIONS = [
-    "Sunset to sunrise",
-    "Nautical twilight",
-    "Astronomical twilight",
-]
 
 # ----------------------------------------
 #   Master State
@@ -213,7 +202,6 @@ class AppState(param.Parameterized):
 
         # Import here to avoid config ↔ state circular dependency
         from exoptima.config.computation import (
-            DEFAULT_SP_TYPE,
             DEFAULT_EXPOSURE_TIME,
             DEFAULT_INSTRUMENT,
             DEFAULT_MAX_AIRMASS,
@@ -224,15 +212,6 @@ class AppState(param.Parameterized):
             DEFAULT_AIRMASS_RV,
             DEFAULT_NIGHT_DEFINITION,
         )
-
-        if DEFAULT_SP_TYPE in VALID_SPTYPES:
-            self.sp_type = DEFAULT_SP_TYPE
-        else:
-            print(
-                f"Warning: DEFAULT_SPTYPE='{DEFAULT_SP_TYPE}' is invalid. "
-                f"Falling back to 'G2'."
-            )
-            self.sp_type = "G2"
 
         self.exposure_time=DEFAULT_EXPOSURE_TIME
 
@@ -247,7 +226,7 @@ class AppState(param.Parameterized):
             max_airmass=DEFAULT_MAX_AIRMASS,
             min_duration=DEFAULT_MIN_DURATION_HOUR * u.hour,
             min_moon_separation=DEFAULT_MIN_MOON_SEP,
-            ignore_moon_if_fli_above=DEFAULT_IGNORE_MOON_FLI,
+            ignore_moon_if_fli_below=DEFAULT_IGNORE_MOON_FLI,
             seeing_arcsec=DEFAULT_SEEING_ARCSEC,
             airmass_rv=DEFAULT_AIRMASS_RV,
         )

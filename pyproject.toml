@@ -1,9 +1,10 @@
 [project]
 name = "exoptima"
-version = "1.4.0"
+version = "2.0.0"
 description = "Exoplanets Observation Preparation Tool for Instrumentation and Mission Analysis"
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 keywords = ["astronomy", "scheduling", "observations"]
 requires-python = ">=3.10"
 authors = [
@@ -29,8 +30,13 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 include-package-data = true
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["exoptima*"]
+exclude = ["workspace*"]
+
 [tool.setuptools.package-data]
-exoptima = ["assets/*.svg"]
+exoptima = ["assets/*"]
 
 [project.urls]
 Homepage = "https://github.com/pedrorfigueira/exoptima"

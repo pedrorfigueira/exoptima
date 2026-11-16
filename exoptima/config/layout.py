@@ -27,6 +27,8 @@ FORM_WIDGET_WIDTH = 200  # pixels
 BUTTON_WIDTH = 160
 BUTTON_HEIGHT = 36
 
+TARGET_FIELD_WIDTH = 100
+
 # ------------------------------------------------------------------
 # Observability plots
 # ------------------------------------------------------------------

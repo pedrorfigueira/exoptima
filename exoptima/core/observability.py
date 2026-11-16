@@ -11,7 +11,7 @@ from astroplan.moon import moon_illumination
 
 from exoptima.config.computation import YEAR_OBS_NIGHTSTEP, DEFAULT_ZENITH_AVOIDANCE_DEG
 from exoptima.config.layout import DAYTIME_INTERVAL, DAY_OBS_NSAMPLES
-from exoptima.core.state import (
+from exoptima.planning.state import (
     AppState,
     ObservabilityResult,
     NightObservability,
@@ -48,6 +48,165 @@ def _has_transit_in_window(
     )
 
 
+def get_night_boundaries(
+    observer,
+    ref_time: Time,
+    night_definition: str,
+) -> tuple[Time, Time]:
+    """Return the start and end of the observing night associated with ref_time."""
+
+    if night_definition == "Sunset to sunrise":
+        is_night = observer.is_night(ref_time)
+        if is_night:
+            night_start = observer.sun_set_time(ref_time, which="previous")
+            night_end = observer.sun_rise_time(ref_time, which="next")
+        else:
+            night_start = observer.sun_set_time(ref_time, which="next")
+            night_end = observer.sun_rise_time(night_start, which="next")
+
+    elif night_definition == "Nautical twilight":
+        is_night = observer.is_night(ref_time, horizon=-12 * u.deg)
+        if is_night:
+            night_start = observer.twilight_evening_nautical(
+                ref_time, which="previous"
+            )
+            night_end = observer.twilight_morning_nautical(
+                ref_time, which="next"
+            )
+        else:
+            night_start = observer.twilight_evening_nautical(
+                ref_time, which="next"
+            )
+            night_end = observer.twilight_morning_nautical(
+                night_start, which="next"
+            )
+
+    elif night_definition == "Astronomical twilight":
+        is_night = observer.is_night(ref_time, horizon=-18 * u.deg)
+        if is_night:
+            night_start = observer.twilight_evening_astronomical(
+                ref_time, which="previous"
+            )
+            night_end = observer.twilight_morning_astronomical(
+                ref_time, which="next"
+            )
+        else:
+            night_start = observer.twilight_evening_astronomical(
+                ref_time, which="next"
+            )
+            night_end = observer.twilight_morning_astronomical(
+                night_start, which="next"
+            )
+
+    else:
+        raise ValueError(f"Unknown night definition: {night_definition!r}")
+
+    return night_start, night_end
+
+
+def calculate_observing_conditions(
+        *,
+        observer,
+        target: SkyCoord,
+        times: Time,
+        instrument,
+        max_airmass: float,
+        min_moon_separation: float,
+        ignore_moon_if_fli_below: float | None,
+) -> dict:
+    """
+    Calculate altitude, airmass, Moon separation, FLI and their constraints
+    for a target over a time grid.
+
+    Angles are returned in degrees; airmass and FLI are dimensionless.
+    """
+
+    if max_airmass <= 0:
+        raise ValueError("max_airmass must be positive")
+
+    if ignore_moon_if_fli_below is not None:
+        if not 0.0 <= ignore_moon_if_fli_below <= 1.0:
+            raise ValueError(
+                "ignore_moon_if_fli_below must be between 0 and 1"
+            )
+
+    # Target altitude and airmass
+    altaz = observer.altaz(times, target)
+
+    altitude = altaz.alt.to_value(u.deg)
+
+    # Zenith avoidance for alt-az telescopes
+    if instrument.altaz_mount:
+        max_altitude = 90.0 - DEFAULT_ZENITH_AVOIDANCE_DEG
+    else:
+        max_altitude = 90.0
+
+    zenith_ok = altitude <= max_altitude
+
+    airmass = altaz.secz.value
+
+    above_horizon = (
+            (altitude > 0.0)
+            & np.isfinite(altitude)
+            & np.isfinite(airmass)
+    )
+
+    airmass_ok = above_horizon & (airmass <= max_airmass)
+
+    # Moon separation and fractional lunar illumination
+    moon = get_body("moon", times, location=observer.location)
+    moon = moon.transform_to(target.frame)
+    moon_separation = target.separation(moon).to_value(u.deg)
+
+    fli = moon_illumination(times)
+
+    moon_separation_ok = moon_separation >= min_moon_separation
+
+    if ignore_moon_if_fli_below is None:
+        moon_ok = moon_separation_ok
+    else:
+        moon_ok = (
+                moon_separation_ok
+                | (fli < ignore_moon_if_fli_below)
+        )
+
+    return {
+        "altitude": altitude,
+        "airmass": airmass,
+        "moon_separation": moon_separation,
+        "fli": fli,
+        "above_horizon": above_horizon,
+        "airmass_ok": airmass_ok,
+        "moon_ok": moon_ok,
+        "zenith_ok": zenith_ok,
+    }
+
+
+def filter_short_observing_windows(times, mask, min_duration):
+    """Keep only continuous observing windows meeting min_duration."""
+
+    accepted_mask = np.zeros_like(mask, dtype=bool)
+    observable_time = 0 * u.hour
+
+    indices = np.flatnonzero(mask)
+    if len(indices) == 0:
+        return accepted_mask, observable_time
+
+    groups = np.split(
+        indices,
+        np.where(np.diff(indices) > 1)[0] + 1,
+    )
+
+    for group in groups:
+        duration = times[group[-1]] - times[group[0]]
+
+        if duration >= min_duration:
+            accepted_mask[group] = True
+            observable_time += duration
+
+    return accepted_mask, observable_time
+
+
 ########################################################################################################################
 # Core single-night computation
 ########################################################################################################################
@@ -66,49 +225,13 @@ def compute_single_night_observability(
     Compute observability for a single night centered on ref_time.
     """
 
-    # ----------------------------
-    # Night bounds
-    # ----------------------------
+    night_start, night_end = get_night_boundaries(
+        observer=observer,
+        ref_time=ref_time,
+        night_definition=night_definition,
+    )
 
-    def _night_bounds(observer, ref_time, night_def):
-        if night_def == "Sunset to sunrise":
-            is_night = observer.is_night(ref_time)
-            if is_night:
-                t_start = observer.sun_set_time(ref_time, which="previous")
-                t_end = observer.sun_rise_time(ref_time, which="next")
-            else:
-                t_start = observer.sun_set_time(ref_time, which="next")
-                t_end = observer.sun_rise_time(t_start, which="next")
-
-        elif night_def == "Nautical twilight":
-            is_night = observer.is_night(ref_time, horizon=-12 * u.deg)
-            if is_night:
-                t_start = observer.twilight_evening_nautical(ref_time, which="previous")
-                t_end = observer.twilight_morning_nautical(ref_time, which="next")
-            else:
-                t_start = observer.twilight_evening_nautical(ref_time, which="next")
-                t_end = observer.twilight_morning_nautical(t_start, which="next")
-
-        elif night_def == "Astronomical twilight":
-            is_night = observer.is_night(ref_time, horizon=-18 * u.deg)
-            if is_night:
-                t_start = observer.twilight_evening_astronomical(ref_time, which="previous")
-                t_end = observer.twilight_morning_astronomical(ref_time, which="next")
-            else:
-                t_start = observer.twilight_evening_astronomical(ref_time, which="next")
-                t_end = observer.twilight_morning_astronomical(t_start, which="next")
-
-        else:
-            raise ValueError(f"Unknown night definition: {night_def}")
-
-        return t_start, t_end
-
-    night_start, night_end = _night_bounds(observer, ref_time, night_definition)
-
-    # ----------------------------
     # Time grid
-    # ----------------------------
-
     t_start = night_start - DAYTIME_INTERVAL
     t_end = night_end + DAYTIME_INTERVAL
 
@@ -118,10 +241,26 @@ def compute_single_night_observability(
         DAY_OBS_NSAMPLES,
     ) * u.hour
 
-    altaz = observer.altaz(times, target)
-    altitude = altaz.alt.to(u.deg)
+    # ----------------------------
+    # Shared observing conditions
+    # ----------------------------
 
-    min_altitude = np.arcsin(1.0 / conditions.max_airmass) * u.rad
+    observing_conditions = calculate_observing_conditions(
+        observer=observer,
+        target=target,
+        times=times,
+        instrument=instrument,
+        max_airmass=conditions.max_airmass,
+        min_moon_separation=conditions.min_moon_separation,
+        ignore_moon_if_fli_below=conditions.ignore_moon_if_fli_below,
+    )
+
+    altitude = observing_conditions["altitude"] * u.deg
+    airmass_ok = observing_conditions["airmass_ok"]
+    moon_sep = observing_conditions["moon_separation"] * u.deg
+    fli = observing_conditions["fli"]
+    moon_mask = observing_conditions["moon_ok"]
+    zenith_ok = observing_conditions["zenith_ok"]
 
     # ----------------------------
     # Night-time mask
@@ -130,44 +269,23 @@ def compute_single_night_observability(
     night_mask = (times >= night_start) & (times <= night_end)
 
     # ----------------------------
-    # Moon constraints
-    # ----------------------------
-
-    moon = get_body("moon", times, observer.location)
-    moon_sep = target.separation(moon)
-    fli = moon_illumination(times)
-
-    moon_sep_mask = moon_sep >= conditions.min_moon_separation * u.deg
-
-    if conditions.ignore_moon_if_fli_above < 1.0:
-        moon_fli_mask = fli <= conditions.ignore_moon_if_fli_above
-        moon_mask = moon_sep_mask | ~moon_fli_mask
-    else:
-        moon_mask = moon_sep_mask
-
-    # ----------------------------
-    # Zenith avoidance for Alt-Az telescopes
-    # ----------------------------
-
-    if instrument.altaz_mount:
-        max_altitude = (90.0 - DEFAULT_ZENITH_AVOIDANCE_DEG) * u.deg
-    else:
-        max_altitude = 90.0 * u.deg
-
-    # ----------------------------
     # Global mask
     # ----------------------------
 
     mask = (
-        night_mask
-        & (altitude >= min_altitude)
-        & (altitude <= max_altitude)
-        & moon_mask
-        & np.isfinite(altitude)
+            night_mask
+            & airmass_ok
+            & zenith_ok
+            & moon_mask
     )
 
-    dt = (times[1] - times[0]).to(u.minute)
-    observable_time = mask.sum() * dt
+    # Apply minimum duration to each continuous observing window.
+    mask, observable_time = filter_short_observing_windows(
+        times,
+        mask,
+        conditions.min_duration,
+    )
+
     is_observable = observable_time >= conditions.min_duration
 
     # --------------------------------------------------
@@ -240,6 +358,20 @@ def get_or_compute_night(
     Return cached NightObservability if available, otherwise compute and cache it.
     """
 
+    # Determine the civil date of the observing night.
+    night_start, _ = get_night_boundaries(
+        observer=observer,
+        ref_time=ref_time,
+        night_definition=night_definition,
+    )
+
+    night_date = night_start.to_datetime().date()
+
+    # Return cached result if available.
+    if night_date in night_cache:
+        return night_cache[night_date]
+
+    # Otherwise, compute the observability.
     result = compute_single_night_observability(
         observer=observer,
         target=target,
@@ -250,15 +382,14 @@ def get_or_compute_night(
         planet_params=planet_params,
     )
 
-    night_date = result.night_start.to_datetime().date()
+    night_obs = NightObservability(
+        date=night_date,
+        result=result,
+    )
 
-    if night_date not in night_cache:
-        night_cache[night_date] = NightObservability(
-            date=night_date,
-            result=result,
-        )
+    night_cache[night_date] = night_obs
 
-    return night_cache[night_date]
+    return night_obs
 
 
 def compute_night_observability(

@@ -1,27 +1,40 @@
 # Control (input) section and tab definitions
 
+import math
 import panel as pn
 import numpy as np
 import json
 
 from pathlib import Path
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
-from astroquery.simbad import Simbad
-
-# Configure SIMBAD once
-_BASE_SIMBAD = Simbad()
+from astroquery.simbad import Simbad, conf as simbad_conf
 
 from exoptima.config.layout import FORM_WIDGET_WIDTH, BUTTON_WIDTH, BUTTON_HEIGHT
+from exoptima.config.computation import (
+    DEFAULT_SPTYPE, VALID_SPTYPES, VALID_NIGHT_DEFINITIONS,
+    STEP_VMAG, STEP_EXPOSURE_TIME,
+    STEP_MAX_AIRMASS, STEP_MIN_DURATION_HOUR,
+    STEP_MIN_MOON_SEP, STEP_IGNORE_MOON_FLI,
+    STEP_SEEING_ARCSEC, STEP_AIRMASS_RV,
+)
 from exoptima.config.instruments import INSTRUMENTS
+from exoptima.config.paths import DEFAULT_TARGETS_DIR
 
-from exoptima.core.state import (
-    AppState, Star, PlanetParameters, ObservingConditions,
-    VALID_SPTYPES, VALID_NIGHT_DEFINITIONS)
+from exoptima.core.services import (
+    create_simbad_client,
+    get_simbad_url,
+)
+
+from exoptima.planning.state import (
+    AppState, Star, PlanetParameters, ObservingConditions
+)
+
+from exoptima.tabs.components import make_divider, make_file_io_controls, format_field
+
 
 # ----- helper functions -----
 
@@ -102,13 +115,6 @@ def validate_coordinates(ra_str: str, dec_str: str) -> tuple[bool, str | None]:
     except Exception as e:
         return False, str(e)
 
-# Custom divider
-
-divider_h = pn.Spacer(
-    height=1,
-    sizing_mode="stretch_width",
-    styles={"background-color": "#e0e0e0"},
-)
 
 # ----- Tabs -----
 
@@ -153,14 +159,15 @@ def make_star_tab(app_state: AppState):
     vmag = pn.widgets.FloatInput(
         name="V mag",
         value=None,
-        step=0.1,
+        step=STEP_VMAG,
+        format=format_field(STEP_VMAG),
         width=FORM_WIDGET_WIDTH // 2,
     )
 
     sp_type = pn.widgets.Select(
         name="SpType (model)",
         options=VALID_SPTYPES,
-        value=app_state.sp_type,
+        value=DEFAULT_SPTYPE,
         width=FORM_WIDGET_WIDTH // 2,
     )
 
@@ -204,7 +211,7 @@ def make_star_tab(app_state: AppState):
 
         # Clear previous values to avoid stale data
         vmag.value = None
-        sp_type.value = "G2"  # or your default
+        sp_type.value = DEFAULT_SPTYPE
         sp_type_simbad.object = ""
 
         name = star_name.value.strip()
@@ -216,7 +223,8 @@ def make_star_tab(app_state: AppState):
             # ---------------------------
             # Step 1: basic query (coords only)
             # ---------------------------
-            result = _BASE_SIMBAD.query_object(name)
+            simbad = create_simbad_client()
+            result = simbad.query_object(name)
 
             if result is None or len(result) == 0:
                 status.object = f"⚠️ Object **{name}** not found in SIMBAD."
@@ -234,9 +242,8 @@ def make_star_tab(app_state: AppState):
             # ---------------------------
             # Step 2: optional photometry query
             # ---------------------------
-            simbad_phot = Simbad()
+            simbad_phot = create_simbad_client()
             simbad_phot.add_votable_fields("flux(V)", "flux(B)", "sp", "ids")
-
             phot = simbad_phot.query_object(name)
 
             vmag_msg = "⚠️ V mag not available"
@@ -318,8 +325,12 @@ def make_star_tab(app_state: AppState):
             # ---------------------------
             _update_star_state()
 
-            simbad_url = f"https://simbad.cds.unistra.fr/simbad/sim-id?Ident={name.replace(' ', '+')}"
-            name_link = f'<a href="{simbad_url}" target="_blank"><b>{name}</b></a>'
+            simbad_url = get_simbad_url(name)
+
+            name_link = (
+                f'<a href="{simbad_url}" target="_blank" '
+                f'rel="noopener noreferrer"><b>{name}</b></a>'
+            )
 
             status.object = (
                 f"✓ Resolved {name_link}\n"
@@ -359,6 +370,7 @@ def make_star_tab(app_state: AppState):
     exptime_widget = pn.widgets.FloatInput(
         name="Exposure time [s]",
         value=app_state.exposure_time,
+        step=STEP_EXPOSURE_TIME,
         width=FORM_WIDGET_WIDTH // 2,
     )
 
@@ -396,7 +408,7 @@ def make_star_tab(app_state: AppState):
         pn.Row(pn.Spacer(width=20),status),
 
         pn.Spacer(height=10),
-        divider_h,
+        make_divider(),
         pn.Spacer(height=10),
         exptime_title,
         exptime_widget,
@@ -556,7 +568,7 @@ def make_instrument_tab(app_state: AppState):
     return pn.Column(
         instrument_select,
         instrument_info,
-        pn.Spacer(height=10), divider_h, pn.Spacer(height=10),
+        pn.Spacer(height=10), make_divider(), pn.Spacer(height=10),
         weather_title,
         weather_losses_mode,
         info_box,
@@ -580,7 +592,8 @@ def make_observing_conditions_tab(app_state: AppState):
         value=app_state.conditions.max_airmass,
         start=1.0,
         end=3.0,
-        step=0.1,
+        step=STEP_MAX_AIRMASS,
+        format=format_field(STEP_MAX_AIRMASS),
         width=FORM_WIDGET_WIDTH // 2,
     )
 
@@ -588,7 +601,8 @@ def make_observing_conditions_tab(app_state: AppState):
         name="Minimum time [h]",
         value=app_state.conditions.min_duration.to_value(u.hour),
         start=0.0,
-        step=0.25,
+        step=STEP_MIN_DURATION_HOUR,
+        format=format_field(STEP_MIN_DURATION_HOUR),
         width=FORM_WIDGET_WIDTH // 2,
     )
 
@@ -601,19 +615,20 @@ def make_observing_conditions_tab(app_state: AppState):
         value=app_state.conditions.min_moon_separation,
         start=0.0,
         end=180.0,
-        step=5.0,
+        step=STEP_MIN_MOON_SEP,
+        format=format_field(STEP_MIN_MOON_SEP),
         width=FORM_WIDGET_WIDTH // 2,
     )
 
     ignore_if_fli = pn.widgets.FloatInput(
         name="Ignore if FLI < ",
-        value=app_state.conditions.ignore_moon_if_fli_above,
+        value=app_state.conditions.ignore_moon_if_fli_below,
         start=0.0,
         end=1.0,
-        step=0.05,
+        step=STEP_IGNORE_MOON_FLI,
+        format=format_field(STEP_IGNORE_MOON_FLI),
         width=FORM_WIDGET_WIDTH // 2,
     )
-
 
     # Instantaneous conditions
 
@@ -627,7 +642,8 @@ def make_observing_conditions_tab(app_state: AppState):
         value=app_state.conditions.seeing_arcsec,
         start=0.3,
         end=3.0,
-        step=0.1,
+        step=STEP_SEEING_ARCSEC,
+        format=format_field(STEP_SEEING_ARCSEC),
         width=FORM_WIDGET_WIDTH,
     )
 
@@ -636,7 +652,8 @@ def make_observing_conditions_tab(app_state: AppState):
         value=app_state.conditions.airmass_rv,
         start=1.0,
         end=3.0,
-        step=0.1,
+        step=STEP_AIRMASS_RV,
+        format=format_field(STEP_AIRMASS_RV),
         width=FORM_WIDGET_WIDTH ,
     )
 
@@ -649,7 +666,7 @@ def make_observing_conditions_tab(app_state: AppState):
             max_airmass=max_airmass.value,
             min_duration=min_time.value * u.hour,
             min_moon_separation=moon_separation.value,
-            ignore_moon_if_fli_above=ignore_if_fli.value,
+            ignore_moon_if_fli_below=ignore_if_fli.value,
             seeing_arcsec=seeing.value,
             airmass_rv=airmass_inst.value,
         )
@@ -671,7 +688,7 @@ def make_observing_conditions_tab(app_state: AppState):
         "max_airmass": max_airmass,
         "min_duration_hours": min_time,
         "min_moon_separation": moon_separation,
-        "ignore_moon_if_fli_above": ignore_if_fli,
+        "ignore_moon_if_fli_below": ignore_if_fli,
         "seeing_arcsec": seeing,
         "airmass_rv": airmass_inst,
     })
@@ -703,9 +720,10 @@ def make_observing_conditions_tab(app_state: AppState):
 
 def make_time_tab(app_state):
 
-    night_duration_title =  pn.pane.HTML("<div style='font-size: 1.3em; font-weight: normal;'>Night limits</div>")
+    night_duration_title = pn.pane.HTML(
+        "<div style='font-size: 1.3em; font-weight: normal;'>Night limits</div>"
+    )
 
-    # night duration
     night_duration_select = pn.widgets.Select(
         name="Night limits",
         options=VALID_NIGHT_DEFINITIONS,
@@ -713,37 +731,28 @@ def make_time_tab(app_state):
         width=FORM_WIDGET_WIDTH,
     )
 
-    time_title =  pn.pane.HTML("<div style='font-size: 1.3em; font-weight: normal;'>Reference Time</div>")
+    time_title = pn.pane.HTML(
+        "<div style='font-size: 1.3em; font-weight: normal;'>Reference Time (UTC)</div>"
+    )
 
-    # Mode selection
+    # Keep the reference time as separate calendar and UT-clock inputs.
+    reference_datetime = app_state.reference_time.utc.to_datetime()
     mode_select = pn.widgets.RadioButtonGroup(
-        options=["Now", "Set Time in UTC", "Set Time in Local Time"],
+        options=["Now", "Set Time in UTC"],
         value="Now",
     )
 
-    time_input = pn.widgets.TextInput(
-        placeholder="YYYY-MM-DD HH:MM",
+    date_input = pn.widgets.DatePicker(
+        name="Date",
+        value=reference_datetime.date(),
+        width=FORM_WIDGET_WIDTH // 2,
         disabled=True,
     )
 
-    timezone_select = pn.widgets.Select(
-        name="Time zone",
-        options=[
-            "Local Time of Observatory",
-            "UTC",
-            "Europe/Paris",
-            "Europe/London",
-            "America/Santiago",
-            "America/New_York",
-            "Asia/Tokyo",
-        ],
-        value="Local Time of Observatory",
-        disabled=True,
-    )
-
-    convert_btn = pn.widgets.Button(
-        name="Convert to UT",
-        button_type="primary",
+    time_input = pn.widgets.TimePicker(
+        name="UT time",
+        value=reference_datetime.time().replace(second=0, microsecond=0),
+        width=FORM_WIDGET_WIDTH // 2,
         disabled=True,
     )
 
@@ -764,24 +773,22 @@ def make_time_tab(app_state):
     update_btn = pn.widgets.Button(
         name="Update time",
         button_type="primary",
-        width = FORM_WIDGET_WIDTH // 2
+        styles={"margin-top": "22px"},
+        width=FORM_WIDGET_WIDTH // 2,
     )
 
-    status = pn.pane.Markdown("")
+    status = pn.pane.Markdown("Using current UTC time.")
+    updating_time_widgets = False
 
-    # ----------------------------
-    # Helpers
-    # ----------------------------
-    def _parse_time(text: str) -> Time:
-        dt = datetime.strptime(text, "%Y-%m-%d %H:%M")
-        return Time(dt, scale="utc")
-
-    def _parse_naive_time(text: str) -> datetime:
-        return datetime.strptime(text, "%Y-%m-%d %H:%M")
-
-    def _observatory_timezone():
-        lon = app_state.instrument.observatory.longitude_deg
-        return "Etc/GMT%+d" % int(round(-lon / 15))
+    def _sync_time_widgets():
+        nonlocal updating_time_widgets
+        reference_datetime = app_state.reference_time.utc.to_datetime()
+        updating_time_widgets = True
+        date_input.value = reference_datetime.date()
+        time_input.value = reference_datetime.time().replace(
+            second=0, microsecond=0
+        )
+        updating_time_widgets = False
 
     def _apply_offset():
         delta = {
@@ -792,11 +799,8 @@ def make_time_tab(app_state):
         }[offset_unit.value]
 
         app_state.reference_time += delta
-
-        time_input.value = app_state.reference_time.to_datetime().strftime(
-            "%Y-%m-%d %H:%M"
-        )
-
+        mode_select.value = "Set Time in UTC"
+        _sync_time_widgets()
         status.object = (
             f"Reference time set to **{app_state.reference_time.iso[:16]} UTC**"
         )
@@ -807,104 +811,50 @@ def make_time_tab(app_state):
     def _on_night_duration_change(event):
         app_state.night_definition = event.new
 
-
     def _on_mode_change(event):
-        mode = event.new
+        is_now = event.new == "Now"
+        date_input.disabled = is_now
+        time_input.disabled = is_now
 
-        if mode == "Now":
-            time_input.disabled = True
-            timezone_select.disabled = True
-            convert_btn.disabled = True
-
-            local_time_row.visible = False
-
+        if is_now:
             app_state.reference_time = Time.now()
             status.object = "Using current UTC time."
+        else:
+            _sync_time_widgets()
+            status.object = "Select a date and UT time."
 
-        elif mode == "Set Time in UTC":
-            time_input.disabled = False
-            timezone_select.disabled = True
-            convert_btn.disabled = True
-
-            local_time_row.visible = False
-
-            time_input.value = app_state.reference_time.to_datetime().strftime(
-                "%Y-%m-%d %H:%M"
-            )
-            status.object = "Enter a UTC time."
-
-        elif mode == "Set Time in Local Time":
-            time_input.disabled = False
-            timezone_select.disabled = False
-            convert_btn.disabled = False
-
-            local_time_row.visible = True
-
-            status.object = (
-                "Enter a local time, select the time zone, then press "
-                "**Convert to UT**."
-            )
-
-    def _on_time_edit(event):
-        if mode_select.value != "Set Time in UTC":
+    def _on_time_edit(event=None):
+        if updating_time_widgets or mode_select.value != "Set Time in UTC":
             return
+        if date_input.value is None or time_input.value is None:
+            return
+
         try:
-            app_state.reference_time = _parse_time(time_input.value.strip())
-            status.object = f"Reference time set to **{app_state.reference_time.iso[:16]} UTC**"
-        except Exception:
-            status.object = (
-                "❌ Invalid format. Use **YYYY-MM-DD HH:MM**, e.g. `2026-01-15 22:30`"
+            reference_datetime = datetime.combine(
+                date_input.value,
+                time_input.value,
             )
-
-    def _on_convert_to_utc(event=None):
-        try:
-            dt_naive = _parse_naive_time(time_input.value.strip())
-
-            if timezone_select.value == "Local Time of Observatory":
-                tz_name = _observatory_timezone()
-            else:
-                tz_name = timezone_select.value
-
-            dt_local = dt_naive.replace(tzinfo=ZoneInfo(tz_name))
-            dt_utc = dt_local.astimezone(ZoneInfo("UTC"))
-
-            app_state.reference_time = Time(dt_utc)
+            app_state.reference_time = Time(reference_datetime, scale="utc")
             status.object = (
-                f"Converted to UTC: **{app_state.reference_time.iso[:16]} UTC**"
+                f"Reference time set to **{app_state.reference_time.iso[:16]} UTC**"
             )
-
-        except Exception as e:
-            status.object = f"❌ Conversion failed: {e}"
+        except Exception as exc:
+            status.object = f"❌ Invalid reference date/time: {exc}"
 
     # ----------------------------
     # Wiring
     # ----------------------------
-
-    status.object = "Using current UTC time."
-
     night_duration_select.param.watch(_on_night_duration_change, "value")
     mode_select.param.watch(_on_mode_change, "value")
+    date_input.param.watch(_on_time_edit, "value")
     time_input.param.watch(_on_time_edit, "value")
     update_btn.on_click(lambda *_: _apply_offset())
-    convert_btn.on_click(_on_convert_to_utc)
 
-    # ----------------------------
-    # Layout
-    # ----------------------------
-
-    utc_time_row = pn.Row(
+    time_input_row = pn.Row(
+        date_input,
         time_input,
         sizing_mode="stretch_width",
     )
-
-    local_time_row = pn.Row(
-        timezone_select,
-        convert_btn,
-        sizing_mode="stretch_width",
-    )
-
-    # Hide local-time controls by default
-    local_time_row.visible = False
 
     time_offset_row = pn.Row(
         offset_value,
@@ -912,35 +862,28 @@ def make_time_tab(app_state):
         update_btn,
     )
 
-    # update values form input file
+    # Register the widgets used by input save/load.
     app_state._input_widgets.update({
         "night_definition": night_duration_select,
         "time_mode": mode_select,
+        "time_date": date_input,
         "time_input": time_input,
-        "timezone": timezone_select,
         "time_offset": offset_value,
         "time_offset_unit": offset_unit,
     })
 
     return pn.Column(
-
         night_duration_title,
         night_duration_select,
         pn.Spacer(height=10),
-
         time_title,
         mode_select,
         pn.Spacer(height=8),
-
-        utc_time_row,
-        local_time_row,
+        time_input_row,
         pn.Spacer(height=10),
-
         time_offset_row,
         pn.Spacer(height=3),
-
         status,
-
         sizing_mode="stretch_width",
     )
 
@@ -954,17 +897,20 @@ def make_planet_rv_tab(app_state: AppState):
     planet_mass = pn.widgets.FloatInput(
                 name="Mass [MJup]",
                 value= None,
+                format="0.00",
                 width=FORM_WIDGET_WIDTH // 2,
     )
     orbital_period = pn.widgets.FloatInput(
                 name="Orbital period [days]",
                 value= None,
+                format="0.00",
                 width=FORM_WIDGET_WIDTH // 2,
     )
 
     stellar_mass = pn.widgets.FloatInput(
                 name="Stellar Mass [MSun]",
                 value=1.0,
+                format="0.00",
                 width=FORM_WIDGET_WIDTH // 2,
                 )
 
@@ -972,6 +918,7 @@ def make_planet_rv_tab(app_state: AppState):
         name="T0 [JD]",
         value=None,
         step=0.0001,
+        format="0.0000",
         width=FORM_WIDGET_WIDTH,
     )
 
@@ -979,6 +926,7 @@ def make_planet_rv_tab(app_state: AppState):
         name="Obs. duration [h]",
         value=None,
         step=0.5,
+        format="0.0",
         width=FORM_WIDGET_WIDTH // 2,
     )
 
@@ -987,13 +935,19 @@ def make_planet_rv_tab(app_state: AppState):
         value=False,
     )
 
+    def _optional_float(value):
+        """Convert NaN or None to None, keeping valid numerical values."""
+        if value is None or math.isnan(value):
+            return None
+        return value
+
     def _update_planet_params(*_):
         app_state.planet_params = PlanetParameters(
-            planet_mass_mjup=planet_mass.value,
-            orbital_period_days=orbital_period.value,
+            planet_mass_mjup=_optional_float(planet_mass.value),
+            orbital_period_days=_optional_float(orbital_period.value),
             stellar_mass_msun=stellar_mass.value,
-            t0_jd=t0_input.value,
-            total_observation_duration=total_duration_input.value,
+            t0_jd=_optional_float(t0_input.value),
+            total_observation_duration=_optional_float(total_duration_input.value),
             include_transit_in_observability=include_transit_switch.value,
         )
 
@@ -1025,7 +979,7 @@ def make_planet_rv_tab(app_state: AppState):
         pn.Spacer(height=8),
         pn.Row(t0_input, total_duration_input, pn.Column(pn.Spacer(height=20), include_transit_switch)),
 
-        pn.Spacer(height=10), divider_h,
+        pn.Spacer(height=10), make_divider(),
 
         sizing_mode="stretch_width",
     )
@@ -1038,33 +992,16 @@ def make_input_output_tab(app_state: AppState):
     # File controls
     # --------------------------------------------------
 
-    default_dir = Path(__file__).resolve().parents[1] / "config"
-
-    working_dir = pn.widgets.TextInput(
-        name="Working Dir",
-        value=str(default_dir),
-        sizing_mode="stretch_width",
+    file_io_layout, file_io = make_file_io_controls(
+        directory_name="Targets working Dir",
+        default_directory=DEFAULT_TARGETS_DIR,
     )
 
-    file_names = pn.widgets.TextInput(
-        name="File Names",
-        value="example_input.json",
-        sizing_mode="stretch_width",
-    )
-
-    save_button = pn.widgets.Button(
-        name="Save Input",
-        button_type="primary",
-        width=BUTTON_WIDTH,
-        height=BUTTON_HEIGHT,
-    )
-
-    load_button = pn.widgets.Button(
-        name="Load Input",
-        button_type="success",
-        width=BUTTON_WIDTH,
-        height=BUTTON_HEIGHT,
-    )
+    working_dir = file_io["working_dir"]
+    file_name = file_io["file_name"]
+    save_button = file_io["save_button"]
+    load_button = file_io["load_button"]
+    refresh_file_list = file_io["refresh_file_list"]
 
     # --------------------------------------------------
     # Log
@@ -1079,7 +1016,10 @@ def make_input_output_tab(app_state: AppState):
 
     def add_log(message: str):
         """Add a timestamped entry to the log."""
-        timestamp = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S")
+
+        timestamp = datetime.now().astimezone().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
 
         log_entries.insert(0, f"- `{timestamp}` — {message}")
         del log_entries[100:]
@@ -1092,9 +1032,10 @@ def make_input_output_tab(app_state: AppState):
 
     def get_file_path() -> Path:
         """Resolve the configuration file path."""
+
         directory = Path(working_dir.value).expanduser()
 
-        filename = file_names.value.strip()
+        filename = file_name.value.strip()
         if not filename:
             raise ValueError("Please provide a filename.")
 
@@ -1111,10 +1052,11 @@ def make_input_output_tab(app_state: AppState):
 
     def get_widget_values() -> dict:
         """Collect the current input values from the registered widgets."""
+
         widgets = getattr(app_state, "_input_widgets", {})
 
         # The reference time is stored separately in UTC.
-        excluded = {"time_mode", "time_input"}
+        excluded = {"time_mode", "time_date", "time_input"}
 
         values = {
             key: widget.value
@@ -1143,9 +1085,12 @@ def make_input_output_tab(app_state: AppState):
                 json.dump(data, f, indent=4, ensure_ascii=False)
 
             add_log(f"✅ Saved input to `{path}`")
+            refresh_file_list()
 
         except Exception as exc:
-            add_log(f"❌ Save failed: `{type(exc).__name__}: {exc}`")
+            add_log(
+                f"❌ Save failed: `{type(exc).__name__}: {exc}`"
+            )
 
     # --------------------------------------------------
     # Load
@@ -1162,7 +1107,9 @@ def make_input_output_tab(app_state: AppState):
                 data = json.load(f)
 
             if not isinstance(data, dict) or "inputs" not in data:
-                raise ValueError("Invalid configuration file: missing 'inputs'.")
+                raise ValueError(
+                    "Invalid configuration file: missing 'inputs'."
+                )
 
             widgets = getattr(app_state, "_input_widgets", {})
             values = data["inputs"]
@@ -1182,29 +1129,30 @@ def make_input_output_tab(app_state: AppState):
             # Update regular controls first. Their existing callbacks
             # propagate the new values into AppState.
             for key, value in values.items():
-                if key in widgets and key not in {"time_mode", "time_input"}:
+                if key in widgets and key not in {"time_mode", "time_date", "time_input"}:
                     widgets[key].value = value
 
             # Restore the displayed time and use UTC mode so the loaded
             # reference time is preserved instead of reset to the current time.
             if "reference_time_utc" in data:
-                time_input = widgets.get("time_input")
+                reference_datetime = app_state.reference_time.utc.to_datetime()
+                date_widget = widgets.get("time_date")
+                time_widget = widgets.get("time_input")
                 mode_select = widgets.get("time_mode")
 
-                if time_input is not None:
-                    time_input.value = (
-                        app_state.reference_time.utc.to_datetime()
-                        .strftime("%Y-%m-%d %H:%M")
+                if date_widget is not None:
+                    date_widget.value = reference_datetime.date()
+                if time_widget is not None:
+                    time_widget.value = reference_datetime.time().replace(
+                        second=0, microsecond=0
                     )
-
                 if mode_select is not None:
                     mode_select.value = "Set Time in UTC"
 
             # Refresh the state flags used to enable the compute buttons.
-            star_widgets = widgets
-            ra_widget = star_widgets.get("ra")
-            dec_widget = star_widgets.get("dec")
-            vmag_widget = star_widgets.get("vmag")
+            ra_widget = widgets.get("ra")
+            dec_widget = widgets.get("dec")
+            vmag_widget = widgets.get("vmag")
 
             if ra_widget is not None and dec_widget is not None:
                 valid, _ = validate_coordinates(
@@ -1219,10 +1167,16 @@ def make_input_output_tab(app_state: AppState):
             add_log(f"✅ Loaded input from `{path}`")
 
             working_dir.value = str(path.parent.resolve())
-            file_names.value = path.name
+            file_name.value = path.name
 
         except Exception as exc:
-            add_log(f"❌ Load failed: `{type(exc).__name__}: {exc}`")
+            add_log(
+                f"❌ Load failed: `{type(exc).__name__}: {exc}`"
+            )
+
+    # --------------------------------------------------
+    # Wiring
+    # --------------------------------------------------
 
     save_button.on_click(save_input)
     load_button.on_click(load_input)
@@ -1234,23 +1188,41 @@ def make_input_output_tab(app_state: AppState):
     return pn.Column(
         pn.pane.HTML(
             "<div style='font-size: 1.3em; font-weight: normal;'>"
-            "Input / Output"
+            "Load / Save"
             "</div>"
         ),
-        working_dir,
-        file_names,
-        pn.Row(save_button, load_button),
+
+        file_io_layout,
+
         pn.Spacer(height=10),
-        divider_h,
+        make_divider(),
         pn.Spacer(height=10),
+
         pn.pane.HTML(
-            "<div style='font-size: 1.2em; font-weight: normal;'>Log</div>"
+            "<div style='font-size: 1.2em; font-weight: normal;'>"
+            "Log"
+            "</div>"
         ),
+
         pn.Column(
             log_pane,
             height=250,
             scroll=True,
             sizing_mode="stretch_width",
         ),
+
+        sizing_mode="stretch_width",
+    )
+
+# general control tabs
+
+def make_control_tabs(app_state: AppState):
+    return pn.Tabs(
+        ("Star & Exptime", make_star_tab(app_state)),
+        ("Instrument", make_instrument_tab(app_state)),
+        ("Conditions", make_observing_conditions_tab(app_state)),
+        ("Obs. Time", make_time_tab(app_state)),
+        ("Planet Params", make_planet_rv_tab(app_state)),
+        ("Load / Save", make_input_output_tab(app_state)),
         sizing_mode="stretch_width",
     )

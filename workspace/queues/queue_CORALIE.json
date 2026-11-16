@@ -1,0 +1,148 @@
+{
+    "format_version": 1,
+    "queue_config": {
+        "instrument": "CORALIE",
+        "night": "2026-11-08",
+        "overheads": {
+            "telescope_preset_s": 60.0,
+            "readout_s": 30.0
+        }
+    },
+    "night_definition": "Astronomical twilight",
+    "observing_period": "Full night",
+    "custom_hours": 0.0,
+    "queue": [
+        {
+            "target": {
+                "star_name": "HD125136",
+                "ra": "14:21:29",
+                "vmag": 7.44,
+                "dec": "-72:19:03",
+                "exposure_time": 600
+            },
+            "constraints": {
+                "ignore_moon_if_fli_below": 0.05,
+                "night_definition": "Astronomical twilight",
+                "min_moon_separation": 30.0,
+                "max_airmass": 1.7,
+                "min_duration_hours": 1.0
+            },
+            "transit_window": {
+                "start": null,
+                "end": null
+            },
+            "include_transit": false,
+            "priority": 1
+        },
+        {
+            "target": {
+                "star_name": "HD127135",
+                "ra": "14:30:50",
+                "vmag": 9.99,
+                "dec": "-37:30:45",
+                "exposure_time": 1200
+            },
+            "constraints": {
+                "ignore_moon_if_fli_below": 0.05,
+                "night_definition": "Astronomical twilight",
+                "min_moon_separation": 30.0,
+                "max_airmass": 1.7,
+                "min_duration_hours": 1.0
+            },
+            "transit_window": {
+                "start": null,
+                "end": null
+            },
+            "include_transit": false,
+            "priority": 1
+        },
+        {
+            "target": {
+                "star_name": "HD220218",
+                "ra": "23:22:42",
+                "vmag": 8.06,
+                "dec": "-61:25:31",
+                "exposure_time": 600
+            },
+            "constraints": {
+                "ignore_moon_if_fli_below": 0.05,
+                "night_definition": "Astronomical twilight",
+                "min_moon_separation": 30.0,
+                "max_airmass": 1.7,
+                "min_duration_hours": 1.0
+            },
+            "transit_window": {
+                "start": null,
+                "end": null
+            },
+            "include_transit": false,
+            "priority": 1
+        },
+        {
+            "target": {
+                "star_name": "HD125136",
+                "ra": "14:21:29",
+                "vmag": 7.44,
+                "dec": "-72:19:03",
+                "exposure_time": 600
+            },
+            "constraints": {
+                "ignore_moon_if_fli_below": 0.05,
+                "night_definition": "Astronomical twilight",
+                "min_moon_separation": 30.0,
+                "max_airmass": 1.7,
+                "min_duration_hours": 1.0
+            },
+            "transit_window": {
+                "start": null,
+                "end": null
+            },
+            "include_transit": false,
+            "priority": 1
+        },
+        {
+            "target": {
+                "star_name": "HD127135",
+                "ra": "14:30:50",
+                "vmag": 9.99,
+                "dec": "-37:30:45",
+                "exposure_time": 1200
+            },
+            "constraints": {
+                "ignore_moon_if_fli_below": 0.05,
+                "night_definition": "Astronomical twilight",
+                "min_moon_separation": 30.0,
+                "max_airmass": 1.7,
+                "min_duration_hours": 1.0
+            },
+            "transit_window": {
+                "start": null,
+                "end": null
+            },
+            "include_transit": false,
+            "priority": 1
+        },
+        {
+            "target": {
+                "star_name": "HD220218",
+                "ra": "23:22:42",
+                "vmag": 8.06,
+                "dec": "-61:25:31",
+                "exposure_time": 600
+            },
+            "constraints": {
+                "ignore_moon_if_fli_below": 0.05,
+                "night_definition": "Astronomical twilight",
+                "min_moon_separation": 30.0,
+                "max_airmass": 1.7,
+                "min_duration_hours": 1.0
+            },
+            "transit_window": {
+                "start": null,
+                "end": null
+            },
+            "include_transit": false,
+            "priority": 1
+        }
+    ]
+}

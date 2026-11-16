@@ -218,43 +218,66 @@ exoptima/
 ├── pyproject.toml
 ├── .gitignore
 │
-└── exoptima/
-    ├── __init__.py
-    ├── app.py
-    ├── cli.py
+├── exoptima/
+│   ├── __init__.py
+│   ├── cli.py
+│   │
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── observability.py
+│   │   ├── precision.py
+│   │   └── services.py
+│   │
+│   ├── config/
+│   │   ├── __init__.py
+│   │   ├── instruments.py
+│   │   ├── computation.py
+│   │   ├── layout.py
+│   │   └── paths.py
+│   │
+│   ├── planning/
+│   │   ├── __init__.py
+│   │   ├── app.py
+│   │   ├── state.py
+│   │   ├── controls.py
+│   │   └── display.py
+│   │
+│   ├── scheduling/
+│   │   ├── __init__.py
+│   │   ├── app.py
+│   │   ├── state.py
+│   │   ├── controls.py
+│   │   ├── display.py
+│   │   ├── targets.py
+│   │   └── obs_helpers.py
+│   │
+│   ├── tabs/
+│   │   ├── __init__.py
+│   │   ├── export.py
+│   │   └── components.py
+│   │
+│   └── assets/
+│       ├── exoptima-alogo.svg
+│       └── exoptima-logo.svg
+│
+└── workspace/
+    ├── targets/
+    │   ├── HD10700_ESPRESSO.json
+    │   ├── HD304636_ESPRESSO.json
+    │   ├── HD125136_CORALIE.json
+    │   ├── HD127135_CORALIE.json
+    │   └── HD220218_CORALIE.json
     │
-    ├── core/
-    │   ├── __init__.py
-    │   ├── state.py       
-    │   ├── observability.py     
-    │   └── precision.py   
-    │
-    ├── config/
-    │   ├── __init__.py
-    │   ├── instruments.py
-    │   ├── computation.py
-    │   ├── layout.py
-    │   └── example_input.json
-    │
-    ├── tabs/
-    │   ├── __init__.py
-    │   ├── interface.py
-    │   ├── controls.py
-    │   ├── display.py
-    │   └── export.py
-    │
-    └── assets/
-        ├── exoptima-alogo.svg
-        └── exoptima-logo.svg
+    └── queues/
+        ├── queue_ESPRESSO.json
+        └── queue_CORALIE.json
 ```
 
 ## TODO
-- [ ] create schedule mode vs (current) planning mode 
-- [ ] create top menu (row) for manipulation of common parameters, lower row for logs and info
-- [ ] allow independent star conditions editing 
-- [ ] implement multiple stellar manipulation on a queue
-- [ ] represent visually open windows and current windows 
-- [ ] test precision estimation with ETCs - fudge factor needed at least for CORALIE
+- [ ] test different queue optimizations / schedulings
+- [ ] homogeneize controls and plot outputs
+- [ ] create a tutorial video 
+- [ ] test RV precision estimation with ETCs - fudge factor needed at least for CORALIE
 - [ ] Implement monthly weather-loss statistics
 
 ## 📄 License

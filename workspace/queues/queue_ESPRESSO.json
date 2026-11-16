@@ -1,0 +1,148 @@
+{
+    "format_version": 1,
+    "queue_config": {
+        "instrument": "ESPRESSO",
+        "night": "2026-11-08",
+        "overheads": {
+            "telescope_preset_s": 180.0,
+            "readout_s": 40.0
+        }
+    },
+    "night_definition": "Nautical twilight",
+    "observing_period": "Full night",
+    "custom_hours": 0.0,
+    "queue": [
+        {
+            "target": {
+                "ra": "01:44:04",
+                "star_name": "HD10700",
+                "dec": "-15:56:15",
+                "exposure_time": 60.0,
+                "vmag": 3.5
+            },
+            "constraints": {
+                "ignore_moon_if_fli_below": 0.05,
+                "min_moon_separation": 30.0,
+                "max_airmass": 2.0,
+                "min_duration_hours": 1.0,
+                "night_definition": "Nautical twilight"
+            },
+            "transit_window": {
+                "start": null,
+                "end": null
+            },
+            "include_transit": false,
+            "priority": 1
+        },
+        {
+            "target": {
+                "ra": "09:21:38",
+                "star_name": "HD304636",
+                "dec": "-60:16:55",
+                "exposure_time": 60.0,
+                "vmag": 9.47
+            },
+            "constraints": {
+                "ignore_moon_if_fli_below": 0.05,
+                "min_moon_separation": 30.0,
+                "max_airmass": 2.0,
+                "min_duration_hours": 1.0,
+                "night_definition": "Nautical twilight"
+            },
+            "transit_window": {
+                "start": null,
+                "end": null
+            },
+            "include_transit": false,
+            "priority": 1
+        },
+        {
+            "target": {
+                "ra": "01:44:04",
+                "star_name": "HD10700",
+                "dec": "-15:56:15",
+                "exposure_time": 60.0,
+                "vmag": 3.5
+            },
+            "constraints": {
+                "ignore_moon_if_fli_below": 0.05,
+                "min_moon_separation": 30.0,
+                "max_airmass": 2.0,
+                "min_duration_hours": 1.0,
+                "night_definition": "Nautical twilight"
+            },
+            "transit_window": {
+                "start": null,
+                "end": null
+            },
+            "include_transit": false,
+            "priority": 1
+        },
+        {
+            "target": {
+                "ra": "01:44:04",
+                "star_name": "HD10700",
+                "dec": "-15:56:15",
+                "exposure_time": 60.0,
+                "vmag": 3.5
+            },
+            "constraints": {
+                "ignore_moon_if_fli_below": 0.05,
+                "min_moon_separation": 30.0,
+                "max_airmass": 2.0,
+                "min_duration_hours": 1.0,
+                "night_definition": "Nautical twilight"
+            },
+            "transit_window": {
+                "start": null,
+                "end": null
+            },
+            "include_transit": false,
+            "priority": 1
+        },
+        {
+            "target": {
+                "ra": "09:21:38",
+                "star_name": "HD304636",
+                "dec": "-60:16:55",
+                "exposure_time": 60.0,
+                "vmag": 9.47
+            },
+            "constraints": {
+                "ignore_moon_if_fli_below": 0.05,
+                "min_moon_separation": 30.0,
+                "max_airmass": 2.0,
+                "min_duration_hours": 1.0,
+                "night_definition": "Nautical twilight"
+            },
+            "transit_window": {
+                "start": null,
+                "end": null
+            },
+            "include_transit": false,
+            "priority": 1
+        },
+        {
+            "target": {
+                "ra": "09:21:38",
+                "star_name": "HD304636",
+                "dec": "-60:16:55",
+                "exposure_time": 60.0,
+                "vmag": 9.47
+            },
+            "constraints": {
+                "ignore_moon_if_fli_below": 0.05,
+                "min_moon_separation": 30.0,
+                "max_airmass": 2.0,
+                "min_duration_hours": 1.0,
+                "night_definition": "Nautical twilight"
+            },
+            "transit_window": {
+                "start": null,
+                "end": null
+            },
+            "include_transit": false,
+            "priority": 1
+        }
+    ]
+}

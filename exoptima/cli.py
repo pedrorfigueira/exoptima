@@ -1,15 +1,22 @@
-# command line interface for exoptima
+# Command line interface for EXOPTIMA
 
 import argparse
 import panel as pn
+from pathlib import Path
 
 from exoptima import __version__
-from exoptima.app import app
 
 def parse_args():
     parser = argparse.ArgumentParser(
         prog="exoptima",
-        description="Exoplanet Observation and Planing Tool for Instrument and Mission Analysis"
+        description="Exoplanet Observation and Planning Tool for Instrument and Mission Analysis"
+    )
+
+    parser.add_argument(
+        "-m", "--mode",
+        choices=["planning", "scheduling", "sched"],
+        default="planning",
+        help="Application mode (planning or scheduling; alias: sched)",
     )
 
     parser.add_argument(
@@ -33,12 +40,6 @@ def parse_args():
         help="URL endpoint name (default: exoptima)"
     )
 
-    parser.add_argument(
-        "--no-show",
-        action="store_true",
-        help="Do not open a web browser automatically"
-    )
-
     return parser.parse_args()
 
 
@@ -46,13 +47,29 @@ def main():
 
     args = parse_args()
 
-    print(f"\n🔭  Launching EXOPTIMA, v{__version__}\n")
+    favicon = Path(__file__).parent / "assets" / "exoptima-favicon.png"
+
+    if args.mode in ["scheduling", "sched"]:
+        display_mode = "scheduling"
+    elif args.mode == "planning":
+        display_mode = "planning"
+    else:
+        raise ValueError(f"Invalid mode: {args.mode}")
+
+    print(f"\n🔭  Launching EXOPTIMA, v{__version__}")
+    print(f"    Mode: {display_mode}\n")
+
+    if args.mode == "planning":
+        from exoptima.planning.app import app
+    else:
+        from exoptima.scheduling.app import app
 
     pn.serve(
         {args.endpoint: app},
         host=args.host,
         port=args.port,
-        show=not args.no_show,
+        show=True,
         autoreload=False,
-        title="EXOPTIMA",
+        title=f"EXOPTIMA - {args.mode.capitalize()}",
+        ico_path=str(favicon),
     )

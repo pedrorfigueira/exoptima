@@ -80,3 +80,24 @@
 
 ### Fixed
 - Monthly and Yearly observability plots show beginning of night on top, and mark it graphically
+
+## v2.0.0 — 2026-11-16
+
+### Added
+- **Scheduling mode implemented**: ability to create, configure and manipulate observing queues.
+- Added queue ordering tools: by right ascension, to minimize airmass, and to minimize airmass while maximizing the temporal separation of repeated observations.
+- Added queue save/load functionality, including restoration of configuration and observability calculations.
+- Added observability visualization for individual targets and their scheduled integrations.
+- Added support for selecting the SIMBAD server (CDS, Harvard or IDIA) through the configuration file, allowing alternative mirrors to be used when the primary service is unavailable.
+- Added section-specific indicators to signal when recalculation is required.
+
+### Changed
+- Reorganized code to separate Planning and Scheduling into independent applications, with dedicated state management and user interfaces.
+- Introduced shared services and configuration modules to centralize common functionality and settings.
+- Improved the Load/Save interface to display and allow direct selection of existing files.
+- Improved queue controls, including manual reordering and individual target priorities and constraints.
+- Minor cosmetic changes (favicon, harmonized controls, etc.).
+
+### Fixed
+- Minor issues with display widgets, including rounding of input values and handling of NaNs.
+- Improved consistency of observability calculations and handling of observing constraints.

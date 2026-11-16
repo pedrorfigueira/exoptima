@@ -174,30 +174,33 @@ KECK_OBSERVATORY = Observatory(
 
 INSTRUMENTS: Dict[str, Instrument] = {
 
-    "EXOTICA": Instrument(
-        name="EXOTICA",
-        observatory=CALAR_ALTO,
-        resolution=65000,
+    "ESPRESSO": Instrument(
+        name="ESPRESSO",
+        observatory=PARANAL,
+        resolution=140000,
         central_wavelength_um=0.55,
-        fiber_diameter_arcsec=1.5,
-        telescope_diameter=1.23,
-        telescope_preset=60.0,
-        readout=30.0,
-        altaz_mount=False,          # German equatorial
-        rv_estimation=None,
-    ),
-
-    "CORALIE": Instrument(
-        name="CORALIE",
-        observatory=LA_SILLA,
-        resolution=60000,
-        central_wavelength_um=0.55,
-        fiber_diameter_arcsec=2.0,
-        telescope_diameter=1.2,
-        telescope_preset=60.0,
-        readout=30.0,
+        fiber_diameter_arcsec=1.0,
+        telescope_diameter=8.2,
+        telescope_preset=180.0,
+        readout=40.0,
         altaz_mount=True,
-        rv_estimation=None,
+        # Reference values based on ESPRESSO ETC / HR11 setup
+        rv_estimation=RVEstimation(
+            ref_exptime=60.0,
+            ref_mag=7.0,
+            ref_airmass=1.0,
+            ref_seeing_arcsec=1.0,
+            ref_snr={
+                "G2": 162.946,
+                "K2": 163.992,
+                "M2": 160.547,
+            },
+            ref_rv_precision={
+                "G2": 0.37,
+                "K2": 0.37,
+                "M2": 0.37,
+            },
+        )
     ),
 
     "HARPS": Instrument(
@@ -226,33 +229,17 @@ INSTRUMENTS: Dict[str, Instrument] = {
         rv_estimation=None,
     ),
 
-    "ESPRESSO": Instrument(
-        name="ESPRESSO",
-        observatory=PARANAL,
-        resolution=140000,
+    "CORALIE": Instrument(
+        name="CORALIE",
+        observatory=LA_SILLA,
+        resolution=60000,
         central_wavelength_um=0.55,
-        fiber_diameter_arcsec=1.0,
-        telescope_diameter=8.2,
-        telescope_preset=180.0,
-        readout=40.0,
+        fiber_diameter_arcsec=2.0,
+        telescope_diameter=1.2,
+        telescope_preset=60.0,
+        readout=30.0,
         altaz_mount=True,
-        # Reference values based on ESPRESSO ETC / HR11 setup
-        rv_estimation=RVEstimation(
-            ref_exptime=60.0,
-            ref_mag=7.0,
-            ref_airmass=1.0,
-            ref_seeing_arcsec=1.0,
-            ref_snr={
-                "G2": 162.946,
-                "K2": 163.992,
-                "M2": 160.547,
-            },
-            ref_rv_precision={
-                "G2": 0.37,
-                "K2": 0.37,
-                "M2": 0.37,
-            },
-        )
+        rv_estimation=None,
     ),
 
     "KPF" : Instrument(
@@ -307,4 +294,33 @@ INSTRUMENTS: Dict[str, Instrument] = {
         rv_estimation=None,
     ),
 
+    "EXOTICA": Instrument(
+        name="EXOTICA",
+        observatory=CALAR_ALTO,
+        resolution=65000,
+        central_wavelength_um=0.55,
+        fiber_diameter_arcsec=1.5,
+        telescope_diameter=1.23,
+        telescope_preset=60.0,
+        readout=30.0,
+        altaz_mount=False,          # German equatorial
+        rv_estimation=None,
+    ),
+
 }
+
+# ------------------------------------------------------------------
+# functions
+# ------------------------------------------------------------------
+
+def get_instrument_overheads(instrument_name: str) -> dict[str, float]:
+    """Return the timing overheads for an instrument, in seconds."""
+    try:
+        instrument = INSTRUMENTS[instrument_name]
+    except KeyError:
+        raise ValueError(f"Unknown instrument: {instrument_name!r}") from None
+
+    return {
+        "telescope_preset_s": float(instrument.telescope_preset),
+        "readout_s": float(instrument.readout),
+    }
